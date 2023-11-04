@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+option go_package = "../pb";
+
+enum ServerCmd {
+  //通用
+  ServerCmdHeartbeat = 0; //心跳
+  ServerCmdLogin = 1; //登录 消息体 ServerLogin
+}
+
+message ServerLogin {
+  string ClientId = 1;
+}
+

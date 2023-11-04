@@ -1,0 +1,16 @@
+logs
+.cache
+
+### IntelliJ IDEA ###
+.idea
+*.iws
+*.iml
+*.ipr
+
+### VS Code ###
+.vscode/
+
+build
+*.txt
+
+node_modules

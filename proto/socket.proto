@@ -1,0 +1,12 @@
+syntax = "proto3";
+
+option go_package = "../pb";
+
+message Text {
+  string Message = 1;
+}
+
+message SocketError {
+  string Code = 1;
+  string Message = 2; //消息文本
+}

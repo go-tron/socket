@@ -1,0 +1,13 @@
+syntax = "proto3";
+
+option go_package = "../pb";
+
+enum ClientCmd {
+  //通用
+  ClientCmdHeartbeat = 0; //心跳
+  ClientCmdLogin = 1; //登录 消息体 ClientLogin
+}
+
+message ClientLogin {
+  string Token = 1;
+}

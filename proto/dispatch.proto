@@ -1,0 +1,15 @@
+syntax = "proto3";
+import "message.proto";
+import "result.proto";
+
+option go_package = "../pb";
+
+service Dispatch {
+  rpc ClientSrv (Client) returns (Result) {}
+  rpc MessageSrv (Message) returns (Result) {}
+}
+
+message Client {
+  string NodeName = 1;
+  string ClientId = 2;
+}
