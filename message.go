@@ -47,7 +47,7 @@ func (s *JsonMessage) String() string {
 	if s.Body == nil {
 		return ""
 	}
-	return fmt.Sprintf("[%s]%v", s.Body.Cmd, s.Body.Content)
+	return fmt.Sprintf("[%v]%v", s.Body.Cmd, s.Body.Content)
 }
 
 var (

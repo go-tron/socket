@@ -2,11 +2,17 @@ syntax = "proto3";
 
 option go_package = "../pb";
 
+enum SocketCmd {
+  SocketCmdHeartbeat = 0; //心跳
+  SocketCmdError = 99; //错误 消息体 Error
+  SocketCmdDisconnect = 100; //服务端主动断开连接 消息体 Error
+}
+
 message Text {
   string Message = 1;
 }
 
-message SocketError {
+message Error {
   string Code = 1;
   string Message = 2; //消息文本
 }

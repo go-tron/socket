@@ -1,14 +1,18 @@
 package socket
 
 import (
+	baseError "github.com/go-tron/base-error"
 	"github.com/go-tron/config"
 	"github.com/go-tron/logger"
 	"github.com/go-tron/snowflake-id"
 	"github.com/go-tron/socket/pb"
 	"github.com/gorilla/websocket"
 	uuid "github.com/satori/go.uuid"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/anypb"
 	"log"
 	"net/http"
+	"reflect"
 	"sync"
 	"time"
 )
@@ -65,8 +69,32 @@ func (s WebSocketConn) Send(msg []byte) {
 	defer s.mu.Unlock()
 	err := s.WriteMessage(websocket.BinaryMessage, msg)
 	if err != nil {
-		log.Println("write:", err)
+		log.Println("Send Error:", err)
 	}
+}
+
+func (s WebSocketConn) OnError(err error) {
+	var e *baseError.Error
+	if reflect.TypeOf(err).String() == "*baseError.Error" {
+		e = err.(*baseError.Error)
+	} else {
+		e = baseError.System("100", err.Error())
+	}
+	content, _ := anypb.New(&pb.Error{
+		Code:    e.Code,
+		Message: e.Msg,
+	})
+	m := &pb.Message{
+		Body: &pb.MessageBody{
+			Cmd:     uint32(pb.SocketCmd_SocketCmdError),
+			Content: content,
+		},
+	}
+	bytes, err := proto.Marshal(m)
+	if err != nil {
+		return
+	}
+	s.Send(bytes)
 }
 
 type WebSocketServer struct {
@@ -173,7 +201,7 @@ func NewWebSocket(config *Config, opts ...Option) Server {
 	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
 		sc, err := upgrader.Upgrade(w, r, nil)
 		if err != nil {
-			log.Println("upgrader", err)
+			log.Println("upgrader err", err)
 			return
 		}
 		conn := NewWebSocketConn(sc)

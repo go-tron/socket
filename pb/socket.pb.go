@@ -20,6 +20,55 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+type SocketCmd int32
+
+const (
+	SocketCmd_SocketCmdHeartbeat  SocketCmd = 0   //心跳
+	SocketCmd_SocketCmdError      SocketCmd = 99  //错误 消息体 Error
+	SocketCmd_SocketCmdDisconnect SocketCmd = 100 //服务端主动断开连接 消息体 Error
+)
+
+// Enum value maps for SocketCmd.
+var (
+	SocketCmd_name = map[int32]string{
+		0:   "SocketCmdHeartbeat",
+		99:  "SocketCmdError",
+		100: "SocketCmdDisconnect",
+	}
+	SocketCmd_value = map[string]int32{
+		"SocketCmdHeartbeat":  0,
+		"SocketCmdError":      99,
+		"SocketCmdDisconnect": 100,
+	}
+)
+
+func (x SocketCmd) Enum() *SocketCmd {
+	p := new(SocketCmd)
+	*p = x
+	return p
+}
+
+func (x SocketCmd) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (SocketCmd) Descriptor() protoreflect.EnumDescriptor {
+	return file_socket_proto_enumTypes[0].Descriptor()
+}
+
+func (SocketCmd) Type() protoreflect.EnumType {
+	return &file_socket_proto_enumTypes[0]
+}
+
+func (x SocketCmd) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use SocketCmd.Descriptor instead.
+func (SocketCmd) EnumDescriptor() ([]byte, []int) {
+	return file_socket_proto_rawDescGZIP(), []int{0}
+}
+
 type Text struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -67,7 +116,7 @@ func (x *Text) GetMessage() string {
 	return ""
 }
 
-type SocketError struct {
+type Error struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
@@ -76,8 +125,8 @@ type SocketError struct {
 	Message string `protobuf:"bytes,2,opt,name=Message,proto3" json:"Message,omitempty"` //消息文本
 }
 
-func (x *SocketError) Reset() {
-	*x = SocketError{}
+func (x *Error) Reset() {
+	*x = Error{}
 	if protoimpl.UnsafeEnabled {
 		mi := &file_socket_proto_msgTypes[1]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -85,13 +134,13 @@ func (x *SocketError) Reset() {
 	}
 }
 
-func (x *SocketError) String() string {
+func (x *Error) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*SocketError) ProtoMessage() {}
+func (*Error) ProtoMessage() {}
 
-func (x *SocketError) ProtoReflect() protoreflect.Message {
+func (x *Error) ProtoReflect() protoreflect.Message {
 	mi := &file_socket_proto_msgTypes[1]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -103,19 +152,19 @@ func (x *SocketError) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use SocketError.ProtoReflect.Descriptor instead.
-func (*SocketError) Descriptor() ([]byte, []int) {
+// Deprecated: Use Error.ProtoReflect.Descriptor instead.
+func (*Error) Descriptor() ([]byte, []int) {
 	return file_socket_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *SocketError) GetCode() string {
+func (x *Error) GetCode() string {
 	if x != nil {
 		return x.Code
 	}
 	return ""
 }
 
-func (x *SocketError) GetMessage() string {
+func (x *Error) GetMessage() string {
 	if x != nil {
 		return x.Message
 	}
@@ -128,11 +177,16 @@ var file_socket_proto_rawDesc = []byte{
 	0x0a, 0x0c, 0x73, 0x6f, 0x63, 0x6b, 0x65, 0x74, 0x2e, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x22, 0x20,
 	0x0a, 0x04, 0x54, 0x65, 0x78, 0x74, 0x12, 0x18, 0x0a, 0x07, 0x4d, 0x65, 0x73, 0x73, 0x61, 0x67,
 	0x65, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x07, 0x4d, 0x65, 0x73, 0x73, 0x61, 0x67, 0x65,
-	0x22, 0x3b, 0x0a, 0x0b, 0x53, 0x6f, 0x63, 0x6b, 0x65, 0x74, 0x45, 0x72, 0x72, 0x6f, 0x72, 0x12,
-	0x12, 0x0a, 0x04, 0x43, 0x6f, 0x64, 0x65, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x04, 0x43,
-	0x6f, 0x64, 0x65, 0x12, 0x18, 0x0a, 0x07, 0x4d, 0x65, 0x73, 0x73, 0x61, 0x67, 0x65, 0x18, 0x02,
-	0x20, 0x01, 0x28, 0x09, 0x52, 0x07, 0x4d, 0x65, 0x73, 0x73, 0x61, 0x67, 0x65, 0x42, 0x07, 0x5a,
-	0x05, 0x2e, 0x2e, 0x2f, 0x70, 0x62, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
+	0x22, 0x35, 0x0a, 0x05, 0x45, 0x72, 0x72, 0x6f, 0x72, 0x12, 0x12, 0x0a, 0x04, 0x43, 0x6f, 0x64,
+	0x65, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x04, 0x43, 0x6f, 0x64, 0x65, 0x12, 0x18, 0x0a,
+	0x07, 0x4d, 0x65, 0x73, 0x73, 0x61, 0x67, 0x65, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x07,
+	0x4d, 0x65, 0x73, 0x73, 0x61, 0x67, 0x65, 0x2a, 0x50, 0x0a, 0x09, 0x53, 0x6f, 0x63, 0x6b, 0x65,
+	0x74, 0x43, 0x6d, 0x64, 0x12, 0x16, 0x0a, 0x12, 0x53, 0x6f, 0x63, 0x6b, 0x65, 0x74, 0x43, 0x6d,
+	0x64, 0x48, 0x65, 0x61, 0x72, 0x74, 0x62, 0x65, 0x61, 0x74, 0x10, 0x00, 0x12, 0x12, 0x0a, 0x0e,
+	0x53, 0x6f, 0x63, 0x6b, 0x65, 0x74, 0x43, 0x6d, 0x64, 0x45, 0x72, 0x72, 0x6f, 0x72, 0x10, 0x63,
+	0x12, 0x17, 0x0a, 0x13, 0x53, 0x6f, 0x63, 0x6b, 0x65, 0x74, 0x43, 0x6d, 0x64, 0x44, 0x69, 0x73,
+	0x63, 0x6f, 0x6e, 0x6e, 0x65, 0x63, 0x74, 0x10, 0x64, 0x42, 0x07, 0x5a, 0x05, 0x2e, 0x2e, 0x2f,
+	0x70, 0x62, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
 }
 
 var (
@@ -147,10 +201,12 @@ func file_socket_proto_rawDescGZIP() []byte {
 	return file_socket_proto_rawDescData
 }
 
+var file_socket_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
 var file_socket_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
 var file_socket_proto_goTypes = []interface{}{
-	(*Text)(nil),        // 0: Text
-	(*SocketError)(nil), // 1: SocketError
+	(SocketCmd)(0), // 0: SocketCmd
+	(*Text)(nil),   // 1: Text
+	(*Error)(nil),  // 2: Error
 }
 var file_socket_proto_depIdxs = []int32{
 	0, // [0:0] is the sub-list for method output_type
@@ -179,7 +235,7 @@ func file_socket_proto_init() {
 			}
 		}
 		file_socket_proto_msgTypes[1].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*SocketError); i {
+			switch v := v.(*Error); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -196,13 +252,14 @@ func file_socket_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_socket_proto_rawDesc,
-			NumEnums:      0,
+			NumEnums:      1,
 			NumMessages:   2,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
 		GoTypes:           file_socket_proto_goTypes,
 		DependencyIndexes: file_socket_proto_depIdxs,
+		EnumInfos:         file_socket_proto_enumTypes,
 		MessageInfos:      file_socket_proto_msgTypes,
 	}.Build()
 	File_socket_proto = out.File

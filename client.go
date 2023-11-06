@@ -2,12 +2,9 @@ package socket
 
 import (
 	"context"
-	baseError "github.com/go-tron/base-error"
 	"github.com/go-tron/logger"
 	"github.com/go-tron/socket/pb"
 	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/known/anypb"
-	"reflect"
 	"time"
 )
 
@@ -91,31 +88,7 @@ func (c *Client) closeConnection(event Event, err error) {
 	defer c.Log(EventCodeText(event), err.Error(), nil)
 	c.CloseEvent = event
 	//通知客户端断开
-	var e *baseError.Error
-	if reflect.TypeOf(err).String() == "*baseError.Error" {
-		e = err.(*baseError.Error)
-		if e.System {
-			e.Msg = "消息系统内部错误"
-		}
-	} else {
-		e = baseError.System("100", "消息系统内部错误")
-	}
-	content, _ := anypb.New(&pb.SocketError{
-		Code:    e.Code,
-		Message: e.Msg,
-	})
-	m := &pb.Message{
-		Body: &pb.MessageBody{
-			Cmd:     99,
-			Content: content,
-		},
-		ClientId: c.ClientId,
-	}
-	bytes, err := proto.Marshal(m)
-	if err != nil {
-		return
-	}
-	c.Conn.Send(bytes)
+	c.Conn.OnError(err)
 	go func() {
 		//延迟1秒后服务端主动断开
 		time.Sleep(time.Second)

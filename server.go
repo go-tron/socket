@@ -3,6 +3,7 @@ package socket
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"github.com/go-tron/logger"
 	"github.com/go-tron/socket/pb"
 	"google.golang.org/protobuf/proto"
@@ -17,6 +18,7 @@ type Conn interface {
 	Close() error
 	GetIP() string
 	Send([]byte)
+	OnError(error)
 }
 
 type Server interface {
@@ -262,6 +264,11 @@ func (s *server) Send(pb *pb.Message) (err error) {
 }
 
 func (s *server) OnTextMessage(c Conn, data []byte) (err error) {
+	defer func() {
+		if err != nil {
+			c.OnError(err)
+		}
+	}()
 	client, err := c.GetClient()
 	if err != nil {
 		return err
@@ -271,10 +278,10 @@ func (s *server) OnTextMessage(c Conn, data []byte) (err error) {
 		return err
 	}
 
-	if msg.Body.Cmd == 0 {
+	if msg.Body.Cmd == uint32(pb.SocketCmd_SocketCmdHeartbeat) {
 		m := &JsonMessage{
 			Body: &JsonMessageBody{
-				Cmd: 0,
+				Cmd: uint32(pb.SocketCmd_SocketCmdHeartbeat),
 			},
 			ClientId: client.ClientId,
 		}
@@ -289,6 +296,11 @@ func (s *server) OnTextMessage(c Conn, data []byte) (err error) {
 }
 
 func (s *server) OnBinaryMessage(c Conn, data []byte) (err error) {
+	defer func() {
+		if err != nil {
+			fmt.Println("OnBinaryMessage Error====================", err)
+		}
+	}()
 	client, err := c.GetClient()
 	if err != nil {
 		return err
@@ -299,10 +311,10 @@ func (s *server) OnBinaryMessage(c Conn, data []byte) (err error) {
 	}
 
 	cmd := msg.Body.Cmd
-	if cmd == 0 {
+	if cmd == uint32(pb.SocketCmd_SocketCmdHeartbeat) {
 		m := &pb.Message{
 			Body: &pb.MessageBody{
-				Cmd: 0,
+				Cmd: uint32(pb.SocketCmd_SocketCmdHeartbeat),
 			},
 			ClientId: client.ClientId,
 		}

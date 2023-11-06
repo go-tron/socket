@@ -12,8 +12,8 @@ import (
 )
 
 func TestMessage_MarshalJSON(t *testing.T) {
-	loginContent, err := anypb.New(&pb.TextMessage{
-		Text: "fkkk",
+	loginContent, err := anypb.New(&pb.Text{
+		Message: "fkkk",
 	})
 	if err != nil {
 		panic(err)
@@ -50,13 +50,14 @@ func TestMessage_MarshalJSON(t *testing.T) {
 		panic(err)
 	}
 
+	val = "asdasdasdsads"
 	m := &pb.Message{}
 	if err := proto.Unmarshal([]byte(val), m); err != nil {
 		panic(err)
 	}
 	fmt.Println("Cmd", m.Body.Cmd)
 
-	a := &pb.TextMessage{}
+	a := &pb.Text{}
 	if err := m.Body.Content.UnmarshalTo(a); err != nil {
 		panic(err)
 	}
