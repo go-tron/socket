@@ -4,7 +4,7 @@ type Event int
 
 const (
 	EventConnected Event = iota
-	EventConnectError
+	EventError
 	EventDisconnect
 	EventCloseConnect
 	EventAuthorized
@@ -16,7 +16,7 @@ const (
 
 var eventCodeText = map[Event]string{
 	EventConnected:      "Connected",
-	EventConnectError:   "ConnectError",
+	EventError:          "Error",
 	EventDisconnect:     "Disconnect",
 	EventCloseConnect:   "CloseConnect",
 	EventAuthorized:     "EventAuthorized",

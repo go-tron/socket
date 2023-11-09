@@ -30,6 +30,7 @@ type Config struct {
 	AppName              string               //应用名称
 	AppPort              string               //应用端口
 	NodeName             string               //节点名称
+	HeartbeatTimeout     int                  //心跳超时
 	ClientLogger         logger.Logger        //客户端日志
 	ClientStorage        clientStorage        //客户端状态存储接口
 	SendAttempt          *SendAttempt         //消息发送重试设置
@@ -123,7 +124,7 @@ func newServer(config *serverConfig) *server {
 
 type serverConfig struct {
 	NodeName         string
-	HeartbeatTimeout uint8
+	HeartbeatTimeout int
 	dispatch         dispatch
 	producerServer   producerServer
 	messageConfig    *messageConfig
@@ -174,7 +175,7 @@ func (s *server) addClient(client *Client) {
 	go func() {
 		select {
 		case <-client.context.Done():
-			if client.CloseError == nil && client.ClientId != "" {
+			if client.ClientId != "" {
 				s.removeClient(client)
 			}
 		}
@@ -190,6 +191,10 @@ func (s *server) addClient(client *Client) {
 }
 
 func (s *server) removeClient(client *Client) {
+	if client.Removed {
+		return
+	}
+	client.Removed = true
 	s.Delete(client.ClientId)
 	if client.storage != nil {
 		client.storage.setStatusOffline(client.ClientId, s.NodeName)
@@ -311,7 +316,7 @@ func (s *server) OnBinaryMessage(c Conn, data []byte) (err error) {
 
 	cmd := msg.Body.Cmd
 	if cmd == uint32(pb.SocketCmd_SocketCmdHeartbeat) {
-		client.HeartbeatTimeout = s.HeartbeatTimeout
+		client.HeartbeatTime = s.HeartbeatTimeout
 		m := &pb.Message{
 			Body: &pb.MessageBody{
 				Cmd: uint32(pb.SocketCmd_SocketCmdHeartbeat),
@@ -345,5 +350,5 @@ func (s *server) OnError(c Conn, e error) {
 	if err != nil {
 		return
 	}
-	client.Log(EventCodeText(EventConnectError), e.Error(), nil)
+	client.onError(e)
 }

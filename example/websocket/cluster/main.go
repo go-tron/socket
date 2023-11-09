@@ -55,11 +55,12 @@ func main() {
 	var server socket.Server
 	server = socket.NewWebSocket(
 		&socket.Config{
-			AppName:       appName,
-			AppPort:       socketPort,
-			NodeName:      nodeName,
-			ClientLogger:  logger.NewZap("client", "info"),
-			MessageLogger: logger.NewZap("message", "info"),
+			AppName:          appName,
+			AppPort:          socketPort,
+			HeartbeatTimeout: 20,
+			NodeName:         nodeName,
+			ClientLogger:     logger.NewZap("client", "info"),
+			MessageLogger:    logger.NewZap("message", "info"),
 			SendAttempt: &socket.SendAttempt{
 				SendAttemptDelay: time.Second,
 				SendMaxAttempts:  5,

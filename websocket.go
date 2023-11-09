@@ -120,16 +120,17 @@ func (s *WebSocketServer) Send(msg *pb.Message) (err error) {
 
 func NewWebSocketWithConfig(c *config.Config, opts ...Option) Server {
 	config := &Config{
-		AppName:       c.GetString("application.name"),
-		AppPort:       c.GetString("application.port"),
-		NodeName:      c.GetString("cluster.podName"),
-		ClientLogger:  logger.NewZapWithConfig(c, "websocket-client", "info"),
-		MessageLogger: logger.NewZapWithConfig(c, "websocket-message", "info"),
+		AppName:          c.GetString("application.name"),
+		AppPort:          c.GetString("application.port"),
+		NodeName:         c.GetString("cluster.podName"),
+		HeartbeatTimeout: c.GetInt("websocket.heartbeatTimeout"),
 		SendAttempt: &SendAttempt{
 			SendMaxAttempts:  c.GetUint("websocket.sendMaxAttempts"),
 			SendAttemptDelay: c.GetDuration("websocket.sendAttemptDelay"),
 		},
 		MessageIdGenerator: snowflakeId.NewWithConfig15(c),
+		ClientLogger:       logger.NewZapWithConfig(c, "websocket-client", "info"),
+		MessageLogger:      logger.NewZapWithConfig(c, "websocket-message", "info"),
 	}
 	return NewWebSocket(config, opts...)
 }
@@ -172,10 +173,11 @@ func NewWebSocket(config *Config, opts ...Option) Server {
 	}
 
 	serverConf := &serverConfig{
-		NodeName:       config.NodeName,
-		dispatch:       config.Dispatch,
-		producerServer: config.ProducerServer,
-		messageConfig:  messageConf,
+		NodeName:         config.NodeName,
+		HeartbeatTimeout: config.HeartbeatTimeout,
+		dispatch:         config.Dispatch,
+		producerServer:   config.ProducerServer,
+		messageConfig:    messageConf,
 		clientConfig: &clientConfig{
 			sendAttempt:          config.SendAttempt,
 			storage:              config.ClientStorage,
@@ -218,7 +220,6 @@ func NewWebSocket(config *Config, opts ...Option) Server {
 					websocketServer.OnError(conn, err)
 					//_, ok := err.(*websocket.CloseError)
 					//_, ok := err.(*net.OpError)
-					websocketServer.OnDisconnect(conn, message)
 					break
 				}
 				if messageType == websocket.TextMessage {

@@ -45,33 +45,36 @@ func NewClient(c Conn, s *server, opts ...ClientOption) (client *Client) {
 	}
 	c.SetClient(client)
 	if s.HeartbeatTimeout > 0 {
-		client.HeartbeatTimeout = s.HeartbeatTimeout
-	}
-	go func() {
-		t := time.NewTicker(time.Second)
-		for range t.C {
-			client.HeartbeatTimeout--
-			if client.HeartbeatTimeout == 0 {
-				client.closeConnection(ErrorHeartbeatTimeout)
-				return
+		client.HeartbeatTime = s.HeartbeatTimeout
+		go func() {
+			t := time.NewTicker(time.Second * 6)
+			for range t.C {
+				if client.Disconnected {
+					return
+				}
+				client.HeartbeatTime = client.HeartbeatTime - 6
+				if client.HeartbeatTime <= 0 {
+					client.closeConnection(ErrorHeartbeatTimeout)
+					return
+				}
 			}
-		}
-		t.Stop()
-	}()
+			t.Stop()
+		}()
+	}
 	return client
 }
 
 type Client struct {
 	*clientConfig
-	Server           *server
-	Conn             Conn
-	IP               string
-	ClientId         string
-	Disconnected     bool
-	CloseError       error
-	context          context.Context
-	removeFn         context.CancelFunc
-	HeartbeatTimeout uint8
+	Server        *server
+	Conn          Conn
+	IP            string
+	ClientId      string
+	Disconnected  bool
+	Removed       bool
+	context       context.Context
+	removeFn      context.CancelFunc
+	HeartbeatTime int
 }
 
 func (c *Client) Log(event string, msg string, err error) {
@@ -101,14 +104,25 @@ func (c *Client) AuthorizeFailed(err error) {
 
 func (c *Client) closeConnection(err error) {
 	defer c.Log(EventCodeText(EventCloseConnect), err.Error(), nil)
-	c.CloseError = err
 	//通知客户端断开
 	c.Conn.OnError(err, true)
+	c.Disconnected = true
+	if c.ClientId != "" {
+		c.Server.removeClient(c)
+	}
 	go func() {
 		//延迟1秒后服务端主动断开
 		time.Sleep(time.Second)
 		c.Conn.Close()
 	}()
+}
+
+func (c *Client) onError(err error) {
+	defer c.Log(EventCodeText(EventError), err.Error(), nil)
+	c.Disconnected = true
+	if c.removeFn != nil {
+		c.removeFn()
+	}
 }
 
 func (c *Client) onDisconnect(reason []byte) {
