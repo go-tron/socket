@@ -54,7 +54,7 @@ func NewClient(c Conn, s *server, opts ...ClientOption) (client *Client) {
 				}
 				client.HeartbeatTime = client.HeartbeatTime - 6
 				if client.HeartbeatTime <= 0 {
-					client.closeConnection(ErrorHeartbeatTimeout)
+					client.closeConnection(ErrorHeartbeatTimeout, true)
 					return
 				}
 			}
@@ -99,16 +99,16 @@ func (c *Client) Authorize(clientId string) {
 
 func (c *Client) AuthorizeFailed(err error) {
 	time.Sleep(time.Millisecond * 200)
-	c.closeConnection(err)
+	c.closeConnection(err, true)
 }
 
-func (c *Client) closeConnection(err error) {
+func (c *Client) closeConnection(err error, updateStatus bool) {
 	defer c.Log(EventCodeText(EventCloseConnect), err.Error(), nil)
 	//通知客户端断开
 	c.Conn.OnError(err, true)
 	c.Disconnected = true
 	if c.ClientId != "" {
-		c.Server.removeClient(c)
+		c.Server.removeClient(c, updateStatus)
 	}
 	go func() {
 		//延迟1秒后服务端主动断开

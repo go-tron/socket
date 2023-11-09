@@ -155,7 +155,7 @@ func (s *server) removeOldClient(c *Client) {
 		return
 	}
 	s.Delete(oc.ClientId)
-	oc.closeConnection(ErrorDuplicateConnect)
+	oc.closeConnection(ErrorDuplicateConnect, false)
 }
 
 func (s *server) removeOldClientSubscribe(nodeName string, clientId string) {
@@ -167,7 +167,7 @@ func (s *server) removeOldClientSubscribe(nodeName string, clientId string) {
 		return
 	}
 	s.Delete(oc.ClientId)
-	oc.closeConnection(ErrorDuplicateConnect)
+	oc.closeConnection(ErrorDuplicateConnect, false)
 }
 
 func (s *server) addClient(client *Client) {
@@ -176,7 +176,7 @@ func (s *server) addClient(client *Client) {
 		select {
 		case <-client.context.Done():
 			if client.ClientId != "" {
-				s.removeClient(client)
+				s.removeClient(client, true)
 			}
 		}
 	}()
@@ -190,13 +190,13 @@ func (s *server) addClient(client *Client) {
 	}
 }
 
-func (s *server) removeClient(client *Client) {
+func (s *server) removeClient(client *Client, updateStatus bool) {
 	if client.Removed {
 		return
 	}
 	client.Removed = true
 	s.Delete(client.ClientId)
-	if client.storage != nil {
+	if updateStatus && client.storage != nil {
 		client.storage.setStatusOffline(client.ClientId, s.NodeName)
 	}
 }
