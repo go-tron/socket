@@ -117,7 +117,7 @@ func (c *Client) closeConnection(err error, updateStatus bool) {
 
 func (c *Client) disconnect(active bool) {
 	c.Disconnected = true
-	c.ActiveClose = true
+	c.ActiveClose = active
 	if c.removeFn != nil {
 		c.removeFn()
 	}
