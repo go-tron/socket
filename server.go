@@ -175,9 +175,7 @@ func (s *server) addClient(client *Client) {
 	go func() {
 		select {
 		case <-client.context.Done():
-			if client.ClientId != "" {
-				s.removeClient(client, true)
-			}
+			s.removeClient(client)
 		}
 	}()
 
@@ -190,13 +188,13 @@ func (s *server) addClient(client *Client) {
 	}
 }
 
-func (s *server) removeClient(client *Client, updateStatus bool) {
-	if client.Removed {
+func (s *server) removeClient(client *Client) {
+	if client.ClientId == "" || client.Removed {
 		return
 	}
 	client.Removed = true
 	s.Delete(client.ClientId)
-	if updateStatus && client.storage != nil {
+	if !client.ActiveClose && client.storage != nil {
 		client.storage.setStatusOffline(client.ClientId, s.NodeName)
 	}
 }
@@ -296,7 +294,7 @@ func (s *server) OnTextMessage(c Conn, data []byte) (err error) {
 		client.Conn.Send(bytes)
 		return nil
 	}
-	return client.receiveTextMessage(data)
+	return client.receiveTextMessage(msg, data)
 }
 
 func (s *server) OnBinaryMessage(c Conn, data []byte) (err error) {
@@ -330,7 +328,7 @@ func (s *server) OnBinaryMessage(c Conn, data []byte) (err error) {
 		client.Conn.Send(bytes)
 		return nil
 	}
-	return client.receiveBinaryMessage(data)
+	return client.receiveBinaryMessage(msg, data)
 }
 
 func (s *server) OnConnect(c Conn) {

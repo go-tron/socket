@@ -9,8 +9,8 @@ import (
 )
 
 type SendAttemptDelayFunc func(n uint) time.Duration
-type BinaryMessageHandler func(client *Client, msg []byte) error
-type TextMessageHandler func(client *Client, msg []byte) error
+type BinaryMessageHandler func(client *Client, msg *pb.Message, bytes []byte) error
+type TextMessageHandler func(client *Client, msg *JsonMessage, bytes []byte) error
 
 type SendAttempt struct {
 	SendMaxAttempts      uint          //消息重试发送最大次数 默认20次
@@ -71,6 +71,7 @@ type Client struct {
 	IP            string
 	ClientId      string
 	Disconnected  bool
+	ActiveClose   bool
 	Removed       bool
 	context       context.Context
 	removeFn      context.CancelFunc
@@ -106,10 +107,7 @@ func (c *Client) closeConnection(err error, updateStatus bool) {
 	defer c.Log(EventCodeText(EventCloseConnect), err.Error(), nil)
 	//通知客户端断开
 	c.Conn.OnError(err, true)
-	c.Disconnected = true
-	if c.ClientId != "" {
-		c.Server.removeClient(c, updateStatus)
-	}
+	c.disconnect(true)
 	go func() {
 		//延迟1秒后服务端主动断开
 		time.Sleep(time.Second)
@@ -117,36 +115,38 @@ func (c *Client) closeConnection(err error, updateStatus bool) {
 	}()
 }
 
-func (c *Client) onError(err error) {
-	defer c.Log(EventCodeText(EventError), err.Error(), nil)
+func (c *Client) disconnect(active bool) {
 	c.Disconnected = true
+	c.ActiveClose = true
 	if c.removeFn != nil {
 		c.removeFn()
 	}
+}
+
+func (c *Client) onError(err error) {
+	defer c.Log(EventCodeText(EventError), err.Error(), nil)
+	c.disconnect(false)
 }
 
 func (c *Client) onDisconnect(reason []byte) {
 	defer c.Log(EventCodeText(EventDisconnect), string(reason), nil)
-	c.Disconnected = true
-	if c.removeFn != nil {
-		c.removeFn()
-	}
+	c.disconnect(false)
 }
 
-func (c *Client) receiveTextMessage(msg []byte) (err error) {
-	defer c.Log(EventCodeText(EventReceiveMessage), string(msg), err)
+func (c *Client) receiveTextMessage(msg *JsonMessage, bytes []byte) (err error) {
+	defer c.Log(EventCodeText(EventReceiveMessage), string(bytes), err)
 	if c.textMessageHandler == nil {
 		return ErrorMessageHandlerUnset
 	}
-	return c.textMessageHandler(c, msg)
+	return c.textMessageHandler(c, msg, bytes)
 }
 
-func (c *Client) receiveBinaryMessage(msg []byte) (err error) {
-	defer c.Log(EventCodeText(EventReceiveMessage), string(msg), err)
+func (c *Client) receiveBinaryMessage(msg *pb.Message, bytes []byte) (err error) {
+	defer c.Log(EventCodeText(EventReceiveMessage), string(bytes), err)
 	if c.binaryMessageHandler == nil {
 		return ErrorMessageHandlerUnset
 	}
-	return c.binaryMessageHandler(c, msg)
+	return c.binaryMessageHandler(c, msg, bytes)
 }
 
 func (c *Client) sendMessageWithRetry(msg *WrappedMessage) (err error) {

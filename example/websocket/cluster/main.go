@@ -55,12 +55,12 @@ func main() {
 	var server socket.Server
 	server = socket.NewWebSocket(
 		&socket.Config{
-			AppName:          appName,
-			AppPort:          socketPort,
-			HeartbeatTimeout: 20,
-			NodeName:         nodeName,
-			ClientLogger:     logger.NewZap("client", "info"),
-			MessageLogger:    logger.NewZap("message", "info"),
+			AppName: appName,
+			AppPort: socketPort,
+			//HeartbeatTimeout: 20,
+			NodeName:      nodeName,
+			ClientLogger:  logger.NewZap("client", "info"),
+			MessageLogger: logger.NewZap("message", "info"),
 			SendAttempt: &socket.SendAttempt{
 				SendAttemptDelay: time.Second,
 				SendMaxAttempts:  5,
@@ -75,12 +75,32 @@ func main() {
 			RedisInstance: redisClient,
 		})),
 		socket.WithMessageIdGenerator(snowflakeId.New(0)),
-		socket.WithTextMessageHandler(func(client *socket.Client, data []byte) (err error) {
-			msg := &socket.JsonMessage{}
-			if err := json.Unmarshal(data, msg); err != nil {
-				return err
-			}
+		socket.WithTextMessageHandler(func(client *socket.Client, msg *socket.JsonMessage, data []byte) (err error) {
 			fmt.Println("WithTextMessageHandler", client.ClientId, msg)
+			bytes, err := json.Marshal(msg.Body.Content)
+			var mm map[string]string
+			if err := json.Unmarshal(bytes, &mm); err != nil {
+				return nil
+			}
+
+			cmd := pb.ClientCmd(msg.Body.Cmd)
+			if cmd == pb.ClientCmd_ClientCmdLogin {
+				loginContent, err := anypb.New(&pb.ClientLogin{
+					Token: mm["token"],
+				})
+				clientId, err := Authorize(client, &socketpb.Message{
+					Body: &socketpb.MessageBody{
+						Cmd:     1,
+						Content: loginContent,
+					},
+				})
+				if err != nil {
+					client.AuthorizeFailed(err)
+				} else {
+					client.Authorize(clientId)
+				}
+				return nil
+			}
 			defer func() {
 				var result = "发送成功"
 				if err != nil {
@@ -89,11 +109,6 @@ func main() {
 				client.Conn.Send([]byte(result))
 			}()
 
-			bytes, err := json.Marshal(msg.Body.Content)
-			var mm map[string]string
-			if err := json.Unmarshal(bytes, &mm); err != nil {
-				return nil
-			}
 			if mm["clientId"] == "" {
 				return errors.New("clientId不能为空")
 			}
@@ -130,11 +145,7 @@ func main() {
 			}
 			return client.Send(m)
 		}),
-		socket.WithBinaryMessageHandler(func(client *socket.Client, data []byte) (err error) {
-			msg := &socketpb.Message{}
-			if err := proto.Unmarshal(data, msg); err != nil {
-				return err
-			}
+		socket.WithBinaryMessageHandler(func(client *socket.Client, msg *socketpb.Message, data []byte) (err error) {
 			cmd := pb.ClientCmd(msg.Body.Cmd)
 			if cmd == pb.ClientCmd_ClientCmdLogin {
 				clientId, err := Authorize(client, msg)
