@@ -44,19 +44,34 @@ func NewClient(c Conn, s *server, opts ...ClientOption) (client *Client) {
 		IP:           c.GetIP(),
 	}
 	c.SetClient(client)
+	if s.HeartbeatTimeout > 0 {
+		client.HeartbeatTimeout = s.HeartbeatTimeout
+	}
+	go func() {
+		t := time.NewTicker(time.Second)
+		for range t.C {
+			client.HeartbeatTimeout--
+			if client.HeartbeatTimeout == 0 {
+				client.closeConnection(ErrorHeartbeatTimeout)
+				return
+			}
+		}
+		t.Stop()
+	}()
 	return client
 }
 
 type Client struct {
 	*clientConfig
-	Server       *server
-	Conn         Conn
-	IP           string
-	ClientId     string
-	Disconnected bool
-	CloseEvent   Event
-	context      context.Context
-	removeFn     context.CancelFunc
+	Server           *server
+	Conn             Conn
+	IP               string
+	ClientId         string
+	Disconnected     bool
+	CloseError       error
+	context          context.Context
+	removeFn         context.CancelFunc
+	HeartbeatTimeout uint8
 }
 
 func (c *Client) Log(event string, msg string, err error) {
@@ -72,7 +87,7 @@ func (c *Client) Log(event string, msg string, err error) {
 }
 
 func (c *Client) Authorize(clientId string) {
-	defer c.Log(EventCodeText(EventLogin), "", nil)
+	defer c.Log(EventCodeText(EventAuthorized), "", nil)
 	c.ClientId = clientId
 	go c.loadMessage()
 	c.Server.removeOldClient(c)
@@ -81,14 +96,14 @@ func (c *Client) Authorize(clientId string) {
 
 func (c *Client) AuthorizeFailed(err error) {
 	time.Sleep(time.Millisecond * 200)
-	c.closeConnection(EventCloseAuthorizeFailed, err)
+	c.closeConnection(err)
 }
 
-func (c *Client) closeConnection(event Event, err error) {
-	defer c.Log(EventCodeText(event), err.Error(), nil)
-	c.CloseEvent = event
+func (c *Client) closeConnection(err error) {
+	defer c.Log(EventCodeText(EventCloseConnect), err.Error(), nil)
+	c.CloseError = err
 	//通知客户端断开
-	c.Conn.OnError(err)
+	c.Conn.OnError(err, true)
 	go func() {
 		//延迟1秒后服务端主动断开
 		time.Sleep(time.Second)

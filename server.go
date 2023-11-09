@@ -3,7 +3,6 @@ package socket
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"github.com/go-tron/logger"
 	"github.com/go-tron/socket/pb"
 	"google.golang.org/protobuf/proto"
@@ -18,7 +17,7 @@ type Conn interface {
 	Close() error
 	GetIP() string
 	Send([]byte)
-	OnError(error)
+	OnError(error, bool)
 }
 
 type Server interface {
@@ -123,11 +122,12 @@ func newServer(config *serverConfig) *server {
 }
 
 type serverConfig struct {
-	NodeName       string
-	dispatch       dispatch
-	producerServer producerServer
-	messageConfig  *messageConfig
-	clientConfig   *clientConfig
+	NodeName         string
+	HeartbeatTimeout uint8
+	dispatch         dispatch
+	producerServer   producerServer
+	messageConfig    *messageConfig
+	clientConfig     *clientConfig
 	clientStorage
 }
 
@@ -154,8 +154,7 @@ func (s *server) removeOldClient(c *Client) {
 		return
 	}
 	s.Delete(oc.ClientId)
-	oc.closeConnection(EventCloseOldClient, ErrorSameClientIdConnect)
-	c.Log(EventCodeText(EventRemoveOldClient), "old connection id:"+oc.Conn.ID(), nil)
+	oc.closeConnection(ErrorDuplicateConnect)
 }
 
 func (s *server) removeOldClientSubscribe(nodeName string, clientId string) {
@@ -167,7 +166,7 @@ func (s *server) removeOldClientSubscribe(nodeName string, clientId string) {
 		return
 	}
 	s.Delete(oc.ClientId)
-	oc.closeConnection(EventCloseOldClientSubscribe, ErrorSameClientIdConnect)
+	oc.closeConnection(ErrorDuplicateConnect)
 }
 
 func (s *server) addClient(client *Client) {
@@ -175,7 +174,7 @@ func (s *server) addClient(client *Client) {
 	go func() {
 		select {
 		case <-client.context.Done():
-			if client.CloseEvent == 0 && client.ClientId != "" {
+			if client.CloseError == nil && client.ClientId != "" {
 				s.removeClient(client)
 			}
 		}
@@ -266,7 +265,7 @@ func (s *server) Send(pb *pb.Message) (err error) {
 func (s *server) OnTextMessage(c Conn, data []byte) (err error) {
 	defer func() {
 		if err != nil {
-			c.OnError(err)
+			c.OnError(err, false)
 		}
 	}()
 	client, err := c.GetClient()
@@ -298,7 +297,7 @@ func (s *server) OnTextMessage(c Conn, data []byte) (err error) {
 func (s *server) OnBinaryMessage(c Conn, data []byte) (err error) {
 	defer func() {
 		if err != nil {
-			fmt.Println("OnBinaryMessage Error====================", err)
+			c.OnError(err, false)
 		}
 	}()
 	client, err := c.GetClient()
@@ -312,6 +311,7 @@ func (s *server) OnBinaryMessage(c Conn, data []byte) (err error) {
 
 	cmd := msg.Body.Cmd
 	if cmd == uint32(pb.SocketCmd_SocketCmdHeartbeat) {
+		client.HeartbeatTimeout = s.HeartbeatTimeout
 		m := &pb.Message{
 			Body: &pb.MessageBody{
 				Cmd: uint32(pb.SocketCmd_SocketCmdHeartbeat),

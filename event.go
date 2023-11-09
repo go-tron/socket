@@ -5,12 +5,9 @@ type Event int
 const (
 	EventConnected Event = iota
 	EventConnectError
-	EventCloseAuthorizeFailed
-	EventCloseOldClient
-	EventCloseOldClientSubscribe
 	EventDisconnect
-	EventLogin
-	EventRemoveOldClient
+	EventCloseConnect
+	EventAuthorized
 	EventSendMessage
 	EventReceiveMessage
 	EventAckMessage
@@ -18,18 +15,15 @@ const (
 )
 
 var eventCodeText = map[Event]string{
-	EventConnected:               "Connected",
-	EventConnectError:            "ConnectError",
-	EventCloseAuthorizeFailed:    "CloseAuthorizeFailed",
-	EventCloseOldClient:          "CloseOldClient",
-	EventCloseOldClientSubscribe: "CloseOldClientSubscribe",
-	EventDisconnect:              "Disconnect",
-	EventLogin:                   "Login",
-	EventRemoveOldClient:         "RemoveOldClient",
-	EventSendMessage:             "SendMessage",
-	EventReceiveMessage:          "ReceiveMessage",
-	EventAckMessage:              "AckMessage",
-	EventLoadMessage:             "LoadMessage",
+	EventConnected:      "Connected",
+	EventConnectError:   "ConnectError",
+	EventDisconnect:     "Disconnect",
+	EventCloseConnect:   "CloseConnect",
+	EventAuthorized:     "EventAuthorized",
+	EventSendMessage:    "SendMessage",
+	EventReceiveMessage: "ReceiveMessage",
+	EventAckMessage:     "AckMessage",
+	EventLoadMessage:    "LoadMessage",
 }
 
 func EventCodeText(code Event) string {

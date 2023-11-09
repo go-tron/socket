@@ -73,7 +73,7 @@ func (s WebSocketConn) Send(msg []byte) {
 	}
 }
 
-func (s WebSocketConn) OnError(err error) {
+func (s WebSocketConn) OnError(err error, disconnect bool) {
 	var e *baseError.Error
 	if reflect.TypeOf(err).String() == "*baseError.Error" {
 		e = err.(*baseError.Error)
@@ -84,9 +84,13 @@ func (s WebSocketConn) OnError(err error) {
 		Code:    e.Code,
 		Message: e.Msg,
 	})
+	cmd := pb.SocketCmd_SocketCmdError
+	if disconnect {
+		cmd = pb.SocketCmd_SocketCmdDisconnect
+	}
 	m := &pb.Message{
 		Body: &pb.MessageBody{
-			Cmd:     uint32(pb.SocketCmd_SocketCmdError),
+			Cmd:     uint32(cmd),
 			Content: content,
 		},
 	}
