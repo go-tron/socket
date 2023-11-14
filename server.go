@@ -6,7 +6,6 @@ import (
 	"github.com/go-tron/logger"
 	"github.com/go-tron/socket/pb"
 	"google.golang.org/protobuf/proto"
-	"sync"
 )
 
 type Conn interface {
@@ -92,8 +91,8 @@ func WithBinaryMessageHandler(val BinaryMessageHandler) Option {
 
 func newServer(config *serverConfig) *server {
 	s := &server{
-		Map:          &sync.Map{},
 		serverConfig: config,
+		ClientList:   make(ClientList, 0),
 	}
 	if s.dispatch != nil {
 		go func() {
@@ -134,27 +133,18 @@ type serverConfig struct {
 
 type server struct {
 	*serverConfig
-	*sync.Map
-}
-
-func (s *server) Load(clientId string) *Client {
-	c, ok := s.Map.Load(clientId)
-	if ok {
-		return c.(*Client)
-	} else {
-		return nil
-	}
+	ClientList
 }
 
 func (s *server) removeOldClient(c *Client) {
-	oc := s.Load(c.ClientId)
+	oc := s.ClientList.Get(c.ClientId)
 	if oc == nil {
 		return
 	}
 	if oc.Conn.ID() == c.Conn.ID() {
 		return
 	}
-	s.Delete(oc.ClientId)
+	s.ClientList.Remove(oc.ClientId)
 	oc.closeConnection(ErrorDuplicateConnect, false)
 }
 
@@ -162,11 +152,11 @@ func (s *server) removeOldClientSubscribe(nodeName string, clientId string) {
 	if nodeName == s.NodeName {
 		return
 	}
-	oc := s.Load(clientId)
+	oc := s.ClientList.Get(clientId)
 	if oc == nil {
 		return
 	}
-	s.Delete(oc.ClientId)
+	s.ClientList.Remove(oc.ClientId)
 	oc.closeConnection(ErrorDuplicateConnect, false)
 }
 
@@ -179,7 +169,7 @@ func (s *server) addClient(client *Client) {
 		}
 	}()
 
-	s.Store(client.ClientId, client)
+	s.ClientList.Add(client)
 	if client.storage != nil {
 		client.storage.setStatusOnline(client.context, client.ClientId, s.NodeName)
 	}
@@ -193,7 +183,7 @@ func (s *server) removeClient(client *Client) {
 		return
 	}
 	client.Removed = true
-	s.Delete(client.ClientId)
+	s.ClientList.Remove(client.ClientId)
 	if !client.ActiveClose && client.storage != nil {
 		client.storage.setStatusOffline(client.ClientId, s.NodeName)
 	}
@@ -201,7 +191,7 @@ func (s *server) removeClient(client *Client) {
 
 func (s *server) send(msg *WrappedMessage) (err error) {
 	//客户端连接至当前服务器节点时,直接发送
-	client := s.Load(msg.ClientId)
+	client := s.ClientList.Get(msg.ClientId)
 	if client != nil {
 		return client.sendMessageWithRetry(msg)
 	}
