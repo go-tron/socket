@@ -137,14 +137,14 @@ type server struct {
 }
 
 func (s *server) removeOldClient(c *Client) {
-	oc := s.ClientList.Get(c.ClientId)
+	oc := s.ClientList.GetByClientId(c.ClientId)
 	if oc == nil {
 		return
 	}
 	if oc.Conn.ID() == c.Conn.ID() {
 		return
 	}
-	s.ClientList.Remove(oc.ClientId)
+	s.ClientList.RemoveByConnectId(oc.Conn.ID())
 	oc.closeConnection(ErrorDuplicateConnect, false)
 }
 
@@ -152,11 +152,11 @@ func (s *server) removeOldClientSubscribe(nodeName string, clientId string) {
 	if nodeName == s.NodeName {
 		return
 	}
-	oc := s.ClientList.Get(clientId)
+	oc := s.ClientList.GetByClientId(clientId)
 	if oc == nil {
 		return
 	}
-	s.ClientList.Remove(oc.ClientId)
+	s.ClientList.RemoveByConnectId(oc.Conn.ID())
 	oc.closeConnection(ErrorDuplicateConnect, false)
 }
 
@@ -183,7 +183,7 @@ func (s *server) removeClient(client *Client) {
 		return
 	}
 	client.Removed = true
-	s.ClientList.Remove(client.ClientId)
+	s.ClientList.RemoveByConnectId(client.Conn.ID())
 	if !client.ActiveClose && client.storage != nil {
 		client.storage.setStatusOffline(client.ClientId, s.NodeName)
 	}
@@ -191,7 +191,7 @@ func (s *server) removeClient(client *Client) {
 
 func (s *server) send(msg *WrappedMessage) (err error) {
 	//客户端连接至当前服务器节点时,直接发送
-	client := s.ClientList.Get(msg.ClientId)
+	client := s.ClientList.GetByClientId(msg.ClientId)
 	if client != nil {
 		return client.sendMessageWithRetry(msg)
 	}

@@ -1,19 +1,21 @@
 package socket
 
-import "slices"
+import (
+	"slices"
+)
 
 type ClientList []*Client
 
-func (cl *ClientList) Remove(clientId string) {
+func (cl *ClientList) RemoveByConnectId(connectId string) {
 	*cl = slices.DeleteFunc(*cl, func(i *Client) bool {
-		return clientId == i.ClientId
+		return connectId == i.Conn.ID()
 	})
 }
 func (cl *ClientList) Add(c *Client) {
 	*cl = append(*cl, c)
 }
 
-func (cl *ClientList) Get(clientId string) *Client {
+func (cl *ClientList) GetByClientId(clientId string) (client *Client) {
 	for _, c := range *cl {
 		if c.ClientId == clientId {
 			return c
