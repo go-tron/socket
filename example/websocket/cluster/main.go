@@ -141,7 +141,8 @@ func main() {
 				if err != nil {
 					return err
 				}
-				m.ExpireAt = localTime.Now().Add(time.Second * time.Duration(expireIn)).ToTimestamppb()
+				ex := localTime.Now().Add(time.Second * time.Duration(expireIn))
+				m.ExpireAt = ex.ToTimestamppb()
 			}
 			return client.Send(m)
 		}),

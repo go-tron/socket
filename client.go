@@ -70,6 +70,7 @@ type Client struct {
 	Conn          Conn
 	IP            string
 	ClientId      string
+	UniqueSig     string
 	Disconnected  bool
 	ActiveClose   bool
 	Removed       bool
@@ -93,6 +94,7 @@ func (c *Client) Log(event string, msg string, err error) {
 func (c *Client) Authorize(clientId string) {
 	defer c.Log(EventCodeText(EventAuthorized), "", nil)
 	c.ClientId = clientId
+	//c.UniqueSig = uniqueSig
 	go c.loadMessage()
 	c.Server.removeOldClient(c)
 	c.Server.addClient(c)

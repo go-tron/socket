@@ -65,6 +65,11 @@ func (s WebSocketConn) GetIP() string {
 }
 
 func (s WebSocketConn) Send(msg []byte) {
+	defer func() {
+		if err := recover(); err != nil {
+			log.Println("Send Recover:", err)
+		}
+	}()
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	err := s.WriteMessage(websocket.BinaryMessage, msg)

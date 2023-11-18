@@ -127,6 +127,7 @@ func (rs *MessageStorageRedis) getClientMessageList(clientId string) (msgList []
 	for _, id := range idList {
 		msg, err := rs.getMessage(id)
 		if err != nil {
+			rs.Redis.LRem(context.Background(), rs.MessageClientKey+":"+clientId, 0, id)
 			var reason = err.Error()
 			if reason == "load" {
 				loadErrorCount++
@@ -217,9 +218,11 @@ func (rs *MessageStorageRedis) saveMessage(msg *WrappedMessage) error {
 		expireAtUnix int64 = 0
 	)
 	if msg.ExpireAt != nil {
-		expireAt = msg.ExpireAt.String()
+		expireTime := localTime.FromTimestamppb(msg.ExpireAt)
+		fmt.Println(expireTime)
+		expireAt = expireTime.String()
 		if !msg.checkNeedPersistence() {
-			expireAtUnix = localTime.FromTimestamppb(msg.ExpireAt).Unix()
+			expireAtUnix = expireTime.Unix()
 		}
 	}
 
