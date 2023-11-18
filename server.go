@@ -23,6 +23,7 @@ type Server interface {
 	Close() error
 	Serve() error
 	Send(*pb.Message) error
+	Broadcast(*pb.Message)
 }
 
 type Config struct {
@@ -344,4 +345,16 @@ func (s *server) OnError(c Conn, e error) {
 		return
 	}
 	client.onError(e)
+}
+
+func (s *server) Broadcast(msg *pb.Message) {
+	bytes, err := proto.Marshal(msg)
+	if err != nil {
+		return
+	}
+	for _, c := range s.ClientList {
+		if !c.Disconnected {
+			c.Conn.Send(bytes)
+		}
+	}
 }
