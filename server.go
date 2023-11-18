@@ -145,7 +145,12 @@ func (s *server) removeOldClient(c *Client) {
 		return
 	}
 	s.ClientList.RemoveByConnectId(oc.Conn.ID())
-	oc.closeConnection(ErrorDuplicateConnect, false)
+
+	if oc.UniqueSig == c.UniqueSig {
+		oc.closeConnection(ErrorDuplicateConnectWithSameUniqueSig, false)
+	} else {
+		oc.closeConnection(ErrorDuplicateConnect, false)
+	}
 }
 
 func (s *server) removeOldClientSubscribe(nodeName string, clientId string) {

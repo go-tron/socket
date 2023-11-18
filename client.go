@@ -91,10 +91,10 @@ func (c *Client) Log(event string, msg string, err error) {
 		logger.NewField("clientId", c.ClientId))
 }
 
-func (c *Client) Authorize(clientId string) {
+func (c *Client) Authorize(clientId string, uniqueSig string) {
 	defer c.Log(EventCodeText(EventAuthorized), "", nil)
 	c.ClientId = clientId
-	//c.UniqueSig = uniqueSig
+	c.UniqueSig = uniqueSig
 	go c.loadMessage()
 	c.Server.removeOldClient(c)
 	c.Server.addClient(c)

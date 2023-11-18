@@ -23,3 +23,4 @@ var ErrorGetNodeClient = baseError.Factory("90018", "获取节点地址失败:{}
 var ErrorGetClientStatus = baseError.Factory("90019", "获取客户端状态失败:{}")
 var ErrorDuplicateConnect = baseError.New("90020", "账号已在其他设备登录")
 var ErrorHeartbeatTimeout = baseError.New("90021", "连接超时")
+var ErrorDuplicateConnectWithSameUniqueSig = baseError.New("90022", "")

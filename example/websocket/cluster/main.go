@@ -97,7 +97,7 @@ func main() {
 				if err != nil {
 					client.AuthorizeFailed(err)
 				} else {
-					client.Authorize(clientId)
+					client.Authorize(clientId, mm["token"])
 				}
 				return nil
 			}
@@ -153,7 +153,7 @@ func main() {
 				if err != nil {
 					client.AuthorizeFailed(err)
 				} else {
-					client.Authorize(clientId)
+					client.Authorize(clientId, clientId)
 				}
 				return nil
 			}
