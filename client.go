@@ -2,10 +2,10 @@ package socket
 
 import (
 	"context"
-	"fmt"
 	"github.com/go-tron/logger"
 	"github.com/go-tron/socket/pb"
 	"google.golang.org/protobuf/proto"
+	"strconv"
 	"time"
 )
 
@@ -91,35 +91,6 @@ func (c *Client) Log(event Event, msg string, err error) {
 		logger.NewField("ip", c.IP),
 		logger.NewField("clientId", c.ClientId))
 }
-func (c *Client) JsonLog(event Event, msg *JsonMessage, err error) {
-	if c.logger == nil {
-		return
-	}
-	c.logger.Info(fmt.Sprintf("%v", msg.Body.Content),
-		logger.NewField("event", EventCodeText(event)),
-		logger.NewField("err", err),
-		logger.NewField("connectId", c.Conn.ID()),
-		logger.NewField("ip", c.IP),
-		logger.NewField("clientId", c.ClientId),
-		logger.NewField("id", msg.Id),
-		logger.NewField("cmd", msg.Body.Cmd),
-	)
-}
-
-func (c *Client) BinaryLog(event Event, msg *pb.Message, err error) {
-	if c.logger == nil {
-		return
-	}
-	c.logger.Info(fmt.Sprintf(msg.Body.Content.String()),
-		logger.NewField("event", EventCodeText(event)),
-		logger.NewField("err", err),
-		logger.NewField("connectId", c.Conn.ID()),
-		logger.NewField("ip", c.IP),
-		logger.NewField("clientId", c.ClientId),
-		logger.NewField("id", msg.Id),
-		logger.NewField("cmd", msg.Body.Cmd),
-	)
-}
 
 func (c *Client) Authorize(clientId string, uniqueSig string) {
 	defer c.Log(EventAuthorized, "", nil)
@@ -166,7 +137,7 @@ func (c *Client) onDisconnect(reason []byte) {
 }
 
 func (c *Client) receiveTextMessage(msg *JsonMessage, bytes []byte) (err error) {
-	defer c.JsonLog(EventReceiveMessage, msg, err)
+	defer c.Log(EventReceiveMessage, strconv.Itoa(int(msg.Body.Cmd)), err)
 	if c.textMessageHandler == nil {
 		return ErrorMessageHandlerUnset
 	}
@@ -174,7 +145,7 @@ func (c *Client) receiveTextMessage(msg *JsonMessage, bytes []byte) (err error) 
 }
 
 func (c *Client) receiveBinaryMessage(msg *pb.Message, bytes []byte) (err error) {
-	defer c.BinaryLog(EventReceiveMessage, msg, err)
+	defer c.Log(EventReceiveMessage, strconv.Itoa(int(msg.Body.Cmd)), err)
 	if c.binaryMessageHandler == nil {
 		return ErrorMessageHandlerUnset
 	}
