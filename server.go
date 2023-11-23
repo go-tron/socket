@@ -23,7 +23,7 @@ type Server interface {
 	Close() error
 	Serve() error
 	Send(*pb.Message) error
-	Broadcast(*pb.Message)
+	Broadcast(interface{})
 }
 
 type Config struct {
@@ -347,14 +347,24 @@ func (s *server) OnError(c Conn, e error) {
 	client.onError(e)
 }
 
-func (s *server) Broadcast(msg *pb.Message) {
-	bytes, err := proto.Marshal(msg)
-	if err != nil {
+func (s *server) Broadcast(msg interface{}) {
+	var data []byte
+	switch v := msg.(type) {
+	case *pb.Message:
+		bytes, err := proto.Marshal(v)
+		if err != nil {
+			return
+		}
+		data = bytes
+	case []byte:
+		data = v
+	}
+	if len(data) == 0 {
 		return
 	}
 	for _, c := range s.ClientList {
 		if !c.Disconnected {
-			c.Conn.Send(bytes)
+			c.Conn.Send(data)
 		}
 	}
 }
