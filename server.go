@@ -6,6 +6,7 @@ import (
 	"github.com/go-tron/logger"
 	"github.com/go-tron/socket/pb"
 	"google.golang.org/protobuf/proto"
+	"slices"
 )
 
 type Conn interface {
@@ -24,6 +25,7 @@ type Server interface {
 	Serve() error
 	Send(*pb.Message) error
 	Broadcast(interface{})
+	SendMany(interface{}, ...string)
 }
 
 type Config struct {
@@ -364,6 +366,28 @@ func (s *server) Broadcast(msg interface{}) {
 	}
 	for _, c := range s.ClientList {
 		if !c.Disconnected {
+			c.Conn.Send(data)
+		}
+	}
+}
+
+func (s *server) SendMany(msg interface{}, clients ...string) {
+	var data []byte
+	switch v := msg.(type) {
+	case *pb.Message:
+		bytes, err := proto.Marshal(v)
+		if err != nil {
+			return
+		}
+		data = bytes
+	case []byte:
+		data = v
+	}
+	if len(data) == 0 {
+		return
+	}
+	for _, c := range s.ClientList {
+		if !c.Disconnected && slices.Contains(clients, c.ClientId) {
 			c.Conn.Send(data)
 		}
 	}
