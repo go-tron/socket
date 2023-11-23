@@ -2,6 +2,7 @@ package socket
 
 import (
 	"context"
+	"fmt"
 	"github.com/go-tron/logger"
 	"github.com/go-tron/socket/pb"
 	"google.golang.org/protobuf/proto"
@@ -30,7 +31,7 @@ type ClientOption func(*clientConfig)
 
 func NewClient(c Conn, s *server, opts ...ClientOption) (client *Client) {
 	defer func() {
-		client.Log(EventCodeText(EventConnected), "", nil)
+		client.Log(EventConnected, "", nil)
 	}()
 
 	for _, apply := range opts {
@@ -79,20 +80,49 @@ type Client struct {
 	HeartbeatTime int
 }
 
-func (c *Client) Log(event string, msg string, err error) {
+func (c *Client) Log(event Event, msg string, err error) {
 	if c.logger == nil {
 		return
 	}
 	c.logger.Info(msg,
-		logger.NewField("event", event),
+		logger.NewField("event", EventCodeText(event)),
 		logger.NewField("err", err),
 		logger.NewField("connectId", c.Conn.ID()),
 		logger.NewField("ip", c.IP),
 		logger.NewField("clientId", c.ClientId))
 }
+func (c *Client) JsonLog(event Event, msg *JsonMessage, err error) {
+	if c.logger == nil {
+		return
+	}
+	c.logger.Info(fmt.Sprintf("%v", msg.Body.Content),
+		logger.NewField("event", EventCodeText(event)),
+		logger.NewField("err", err),
+		logger.NewField("connectId", c.Conn.ID()),
+		logger.NewField("ip", c.IP),
+		logger.NewField("clientId", c.ClientId),
+		logger.NewField("id", msg.Id),
+		logger.NewField("cmd", msg.Body.Cmd),
+	)
+}
+
+func (c *Client) BinaryLog(event Event, msg *pb.Message, err error) {
+	if c.logger == nil {
+		return
+	}
+	c.logger.Info(fmt.Sprintf(msg.Body.Content.String()),
+		logger.NewField("event", EventCodeText(event)),
+		logger.NewField("err", err),
+		logger.NewField("connectId", c.Conn.ID()),
+		logger.NewField("ip", c.IP),
+		logger.NewField("clientId", c.ClientId),
+		logger.NewField("id", msg.Id),
+		logger.NewField("cmd", msg.Body.Cmd),
+	)
+}
 
 func (c *Client) Authorize(clientId string, uniqueSig string) {
-	defer c.Log(EventCodeText(EventAuthorized), "", nil)
+	defer c.Log(EventAuthorized, "", nil)
 	c.ClientId = clientId
 	c.UniqueSig = uniqueSig
 	go c.loadMessage()
@@ -106,7 +136,7 @@ func (c *Client) AuthorizeFailed(err error) {
 }
 
 func (c *Client) closeConnection(err error, updateStatus bool) {
-	defer c.Log(EventCodeText(EventCloseConnect), err.Error(), nil)
+	defer c.Log(EventCloseConnect, err.Error(), nil)
 	//通知客户端断开
 	c.Conn.OnError(err, true)
 	c.disconnect(true)
@@ -126,17 +156,17 @@ func (c *Client) disconnect(active bool) {
 }
 
 func (c *Client) onError(err error) {
-	defer c.Log(EventCodeText(EventError), err.Error(), nil)
+	defer c.Log(EventError, err.Error(), nil)
 	c.disconnect(false)
 }
 
 func (c *Client) onDisconnect(reason []byte) {
-	defer c.Log(EventCodeText(EventDisconnect), string(reason), nil)
+	defer c.Log(EventDisconnect, string(reason), nil)
 	c.disconnect(false)
 }
 
 func (c *Client) receiveTextMessage(msg *JsonMessage, bytes []byte) (err error) {
-	defer c.Log(EventCodeText(EventReceiveMessage), string(bytes), err)
+	defer c.JsonLog(EventReceiveMessage, msg, err)
 	if c.textMessageHandler == nil {
 		return ErrorMessageHandlerUnset
 	}
@@ -144,7 +174,7 @@ func (c *Client) receiveTextMessage(msg *JsonMessage, bytes []byte) (err error) 
 }
 
 func (c *Client) receiveBinaryMessage(msg *pb.Message, bytes []byte) (err error) {
-	defer c.Log(EventCodeText(EventReceiveMessage), string(bytes), err)
+	defer c.BinaryLog(EventReceiveMessage, msg, err)
 	if c.binaryMessageHandler == nil {
 		return ErrorMessageHandlerUnset
 	}
@@ -177,14 +207,13 @@ func (c *Client) sendMessageWithRetry(msg *WrappedMessage) (err error) {
 }
 
 func (c *Client) sendMessage(msg *WrappedMessage) (err error) {
-	defer c.Log(EventCodeText(EventSendMessage), msg.Id, err)
+	defer c.BinaryLog(EventSendMessage, msg.Message, err)
 	if c.Disconnected {
 		return ErrorClientHasDisconnected
 	}
 	if err = msg.attemptSend(c.sendAttempt.SendMaxAttempts); err != nil {
 		return err
 	}
-	//bytes, err := json.Marshal(msg)
 	bytes, err := proto.Marshal(msg)
 	if err != nil {
 		return err
@@ -195,7 +224,7 @@ func (c *Client) sendMessage(msg *WrappedMessage) (err error) {
 
 func (c *Client) loadMessage() {
 	msgList, summary, err := c.Server.messageConfig.storage.getClientMessageList(c.ClientId)
-	c.Log(EventCodeText(EventLoadMessage), summary, err)
+	c.Log(EventLoadMessage, summary, err)
 	if err != nil {
 		return
 	}
