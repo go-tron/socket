@@ -135,7 +135,7 @@ func NewWebSocketWithConfig(c *config.Config, opts ...Option) Server {
 		},
 		MessageIdGenerator: snowflakeId.NewWithConfig15(c),
 		ClientLogger:       logger.NewZapWithConfig(c, "websocket-client", "info"),
-		MessageLogger:      logger.NewZapWithConfig(c, "websocket-message", "info"),
+		MessageLogger:      logger.NewZapWithConfig(c, "websocket-message", "error"),
 	}
 	return NewWebSocket(config, opts...)
 }
