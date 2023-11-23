@@ -366,7 +366,7 @@ func (s *server) Broadcast(msg interface{}) {
 	}
 	for _, c := range s.ClientList {
 		if !c.Disconnected {
-			c.Conn.Send(data)
+			go c.Conn.Send(data)
 		}
 	}
 }
@@ -388,7 +388,7 @@ func (s *server) SendMany(msg interface{}, clients ...string) {
 	}
 	for _, c := range s.ClientList {
 		if !c.Disconnected && slices.Contains(clients, c.ClientId) {
-			c.Conn.Send(data)
+			go c.Conn.Send(data)
 		}
 	}
 }
