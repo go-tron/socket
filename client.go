@@ -178,7 +178,7 @@ func (c *Client) sendMessageWithRetry(msg *WrappedMessage) (err error) {
 }
 
 func (c *Client) sendMessage(msg *WrappedMessage) (err error) {
-	defer c.BinaryLog(EventSendMessage, msg.Message, err)
+	defer c.Log(EventSendMessage, strconv.Itoa(int(msg.Body.Cmd)), err)
 	if c.Disconnected {
 		return ErrorClientHasDisconnected
 	}
