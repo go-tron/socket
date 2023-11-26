@@ -49,6 +49,16 @@ type Config struct {
 
 type Option func(*Config)
 
+func WithClientCmdMap(val map[int32]string) Option {
+	return func(opts *Config) {
+		opts.ClientCmdMap = val
+	}
+}
+func WithServerCmdMap(val map[int32]string) Option {
+	return func(opts *Config) {
+		opts.ServerCmdMap = val
+	}
+}
 func WithProducerServer(val producerServer) Option {
 	return func(opts *Config) {
 		opts.ProducerServer = val
