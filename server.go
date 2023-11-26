@@ -29,10 +29,12 @@ type Server interface {
 }
 
 type Config struct {
-	AppName              string               //应用名称
-	AppPort              string               //应用端口
-	NodeName             string               //节点名称
-	HeartbeatTimeout     int                  //心跳超时
+	AppName              string //应用名称
+	AppPort              string //应用端口
+	NodeName             string //节点名称
+	HeartbeatTimeout     int    //心跳超时
+	ClientCmdMap         map[int32]string
+	ServerCmdMap         map[int32]string
 	ClientLogger         logger.Logger        //客户端日志
 	ClientStorage        clientStorage        //客户端状态存储接口
 	SendAttempt          *SendAttempt         //消息发送重试设置
@@ -127,6 +129,8 @@ func newServer(config *serverConfig) *server {
 type serverConfig struct {
 	NodeName         string
 	HeartbeatTimeout int
+	ClientCmdMap     map[int32]string
+	ServerCmdMap     map[int32]string
 	dispatch         dispatch
 	producerServer   producerServer
 	messageConfig    *messageConfig

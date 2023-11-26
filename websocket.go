@@ -180,6 +180,8 @@ func NewWebSocket(config *Config, opts ...Option) Server {
 	serverConf := &serverConfig{
 		NodeName:         config.NodeName,
 		HeartbeatTimeout: config.HeartbeatTimeout,
+		ClientCmdMap:     config.ClientCmdMap,
+		ServerCmdMap:     config.ServerCmdMap,
 		dispatch:         config.Dispatch,
 		producerServer:   config.ProducerServer,
 		messageConfig:    messageConf,

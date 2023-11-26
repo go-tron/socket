@@ -137,7 +137,13 @@ func (c *Client) onDisconnect(reason []byte) {
 }
 
 func (c *Client) receiveTextMessage(msg *JsonMessage, bytes []byte) (err error) {
-	defer c.Log(EventReceiveMessage, strconv.Itoa(int(msg.Body.Cmd)), err)
+	defer func() {
+		if cmd := c.Server.ClientCmdMap[int32(msg.Body.Cmd)]; cmd != "" {
+			c.Log(EventReceiveMessage, cmd, err)
+		} else {
+			c.Log(EventReceiveMessage, strconv.Itoa(int(msg.Body.Cmd)), err)
+		}
+	}()
 	if c.textMessageHandler == nil {
 		return ErrorMessageHandlerUnset
 	}
@@ -145,7 +151,13 @@ func (c *Client) receiveTextMessage(msg *JsonMessage, bytes []byte) (err error) 
 }
 
 func (c *Client) receiveBinaryMessage(msg *pb.Message, bytes []byte) (err error) {
-	defer c.Log(EventReceiveMessage, strconv.Itoa(int(msg.Body.Cmd)), err)
+	defer func() {
+		if cmd := c.Server.ClientCmdMap[int32(msg.Body.Cmd)]; cmd != "" {
+			c.Log(EventReceiveMessage, cmd, err)
+		} else {
+			c.Log(EventReceiveMessage, strconv.Itoa(int(msg.Body.Cmd)), err)
+		}
+	}()
 	if c.binaryMessageHandler == nil {
 		return ErrorMessageHandlerUnset
 	}
@@ -178,7 +190,14 @@ func (c *Client) sendMessageWithRetry(msg *WrappedMessage) (err error) {
 }
 
 func (c *Client) sendMessage(msg *WrappedMessage) (err error) {
-	defer c.Log(EventSendMessage, strconv.Itoa(int(msg.Body.Cmd)), err)
+	defer func() {
+		if cmd := c.Server.ServerCmdMap[int32(msg.Body.Cmd)]; cmd != "" {
+			c.Log(EventSendMessage, cmd, err)
+		} else {
+			c.Log(EventSendMessage, strconv.Itoa(int(msg.Body.Cmd)), err)
+		}
+	}()
+
 	if c.Disconnected {
 		return ErrorClientHasDisconnected
 	}
