@@ -7,6 +7,7 @@ import (
 	"github.com/go-tron/socket/pb"
 	"google.golang.org/protobuf/proto"
 	"slices"
+	"strconv"
 )
 
 type Conn interface {
@@ -16,7 +17,7 @@ type Conn interface {
 	GetAuthorizedClient() (*Client, error)
 	Close() error
 	GetIP() string
-	Send([]byte)
+	Send([]byte) error
 	OnError(error, bool)
 }
 
@@ -212,6 +213,24 @@ func (s *server) removeClient(client *Client) {
 }
 
 func (s *server) send(msg *WrappedMessage) (err error) {
+	if msg.Body == nil {
+		return nil
+	}
+	defer func() {
+		if s.clientConfig.logger == nil {
+			return
+		}
+		cmd := strconv.Itoa(int(msg.Body.Cmd))
+		if s.ServerCmdMap != nil && s.ServerCmdMap[int32(msg.Body.Cmd)] != "" {
+			cmd = s.ServerCmdMap[int32(msg.Body.Cmd)]
+		}
+		s.clientConfig.logger.Info(
+			cmd,
+			logger.NewField("event", "SendMessage"),
+			logger.NewField("err", err),
+			logger.NewField("clientId", msg.ClientId),
+		)
+	}()
 	//客户端连接至当前服务器节点时,直接发送
 	client := s.ClientList.GetByClientId(msg.ClientId)
 	if client != nil {
@@ -303,8 +322,7 @@ func (s *server) OnTextMessage(c Conn, data []byte) (err error) {
 		if err != nil {
 			return err
 		}
-		client.Conn.Send(bytes)
-		return nil
+		return client.Conn.Send(bytes)
 	}
 	return client.receiveTextMessage(msg, data)
 }
@@ -337,8 +355,7 @@ func (s *server) OnBinaryMessage(c Conn, data []byte) (err error) {
 		if err != nil {
 			return err
 		}
-		client.Conn.Send(bytes)
-		return nil
+		return client.Conn.Send(bytes)
 	}
 	return client.receiveBinaryMessage(msg, data)
 }

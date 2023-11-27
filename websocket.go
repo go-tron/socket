@@ -1,6 +1,8 @@
 package socket
 
 import (
+	"errors"
+	"fmt"
 	baseError "github.com/go-tron/base-error"
 	"github.com/go-tron/config"
 	"github.com/go-tron/logger"
@@ -64,18 +66,28 @@ func (s WebSocketConn) GetIP() string {
 	return ip
 }
 
-func (s WebSocketConn) Send(msg []byte) {
+func (s WebSocketConn) Send(msg []byte) (err error) {
 	defer func() {
-		if err := recover(); err != nil {
-			log.Println("Send Recover:", err)
+		if e := recover(); e != nil {
+			var clientId = ""
+			if s.client != nil {
+				clientId = s.client.ClientId
+			}
+			err = errors.New(fmt.Sprintf("%v", e))
+			log.Printf("Send Recover: connId=%s clientId=%s err=%v msg=%s\r\n", s.id, clientId, err, string(msg))
 		}
 	}()
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	err := s.WriteMessage(websocket.BinaryMessage, msg)
+	err = s.WriteMessage(websocket.BinaryMessage, msg)
 	if err != nil {
-		log.Println("Send Error:", err)
+		var clientId = ""
+		if s.client != nil {
+			clientId = s.client.ClientId
+		}
+		log.Printf("Send Error: connId=%s clientId=%s err=%v msg=%s\r\n", s.id, clientId, err, string(msg))
 	}
+	return nil
 }
 
 func (s WebSocketConn) OnError(err error, disconnect bool) {

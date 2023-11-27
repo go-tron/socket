@@ -190,14 +190,6 @@ func (c *Client) sendMessageWithRetry(msg *WrappedMessage) (err error) {
 }
 
 func (c *Client) sendMessage(msg *WrappedMessage) (err error) {
-	defer func() {
-		cmd := strconv.Itoa(int(msg.Body.Cmd))
-		if c.Server.ServerCmdMap != nil && c.Server.ServerCmdMap[int32(msg.Body.Cmd)] != "" {
-			cmd = c.Server.ServerCmdMap[int32(msg.Body.Cmd)]
-		}
-		c.Log(EventSendMessage, cmd, err)
-	}()
-
 	if c.Disconnected {
 		return ErrorClientHasDisconnected
 	}
@@ -208,8 +200,7 @@ func (c *Client) sendMessage(msg *WrappedMessage) (err error) {
 	if err != nil {
 		return err
 	}
-	c.Conn.Send(bytes)
-	return nil
+	return c.Conn.Send(bytes)
 }
 
 func (c *Client) loadMessage() {
@@ -239,6 +230,6 @@ func (c *Client) Send(pm *pb.Message) (err error) {
 	return c.Server.Send(pm)
 }
 
-func (c *Client) SendLow(msg []byte) {
-	c.Conn.Send(msg)
+func (c *Client) SendLow(msg []byte) (err error) {
+	return c.Conn.Send(msg)
 }
