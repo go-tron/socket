@@ -310,8 +310,12 @@ func (s *server) OnTextMessage(c Conn, data []byte) (err error) {
 	if err := json.Unmarshal(data, msg); err != nil {
 		return err
 	}
+	if msg.Body == nil {
+		return ErrorBodyIsEmpty
+	}
 
 	if msg.Body.Cmd == uint32(pb.SocketCmd_SocketCmdHeartbeat) {
+		client.HeartbeatTime = s.HeartbeatTimeout
 		m := &JsonMessage{
 			Body: &JsonMessageBody{
 				Cmd: uint32(pb.SocketCmd_SocketCmdHeartbeat),
@@ -341,9 +345,11 @@ func (s *server) OnBinaryMessage(c Conn, data []byte) (err error) {
 	if err := proto.Unmarshal(data, msg); err != nil {
 		return err
 	}
+	if msg.Body == nil {
+		return ErrorBodyIsEmpty
+	}
 
-	cmd := msg.Body.Cmd
-	if cmd == uint32(pb.SocketCmd_SocketCmdHeartbeat) {
+	if msg.Body.Cmd == uint32(pb.SocketCmd_SocketCmdHeartbeat) {
 		client.HeartbeatTime = s.HeartbeatTimeout
 		m := &pb.Message{
 			Body: &pb.MessageBody{
