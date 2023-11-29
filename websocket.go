@@ -87,7 +87,7 @@ func (s WebSocketConn) Send(msg []byte) (err error) {
 		}
 		log.Printf("Send Error: connId=%s clientId=%s err=%v msg=%s\r\n", s.id, clientId, err, string(msg))
 	}
-	return nil
+	return err
 }
 
 func (s WebSocketConn) OnError(err error, disconnect bool) {
