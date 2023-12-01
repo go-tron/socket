@@ -5,7 +5,6 @@ import (
 	"github.com/go-tron/logger"
 	"github.com/go-tron/socket/pb"
 	"google.golang.org/protobuf/proto"
-	"strconv"
 	"time"
 )
 
@@ -137,13 +136,6 @@ func (c *Client) onDisconnect(reason []byte) {
 }
 
 func (c *Client) receiveTextMessage(msg *JsonMessage, bytes []byte) (err error) {
-	defer func() {
-		cmd := strconv.Itoa(int(msg.Body.Cmd))
-		if c.Server.ClientCmdMap != nil && c.Server.ClientCmdMap[int32(msg.Body.Cmd)] != "" {
-			cmd = c.Server.ClientCmdMap[int32(msg.Body.Cmd)]
-		}
-		c.Log(EventReceiveMessage, cmd, err)
-	}()
 	if c.textMessageHandler == nil {
 		return ErrorMessageHandlerUnset
 	}
@@ -151,13 +143,6 @@ func (c *Client) receiveTextMessage(msg *JsonMessage, bytes []byte) (err error) 
 }
 
 func (c *Client) receiveBinaryMessage(msg *pb.Message, bytes []byte) (err error) {
-	defer func() {
-		cmd := strconv.Itoa(int(msg.Body.Cmd))
-		if c.Server.ClientCmdMap != nil && c.Server.ClientCmdMap[int32(msg.Body.Cmd)] != "" {
-			cmd = c.Server.ClientCmdMap[int32(msg.Body.Cmd)]
-		}
-		c.Log(EventReceiveMessage, cmd, err)
-	}()
 	if c.binaryMessageHandler == nil {
 		return ErrorMessageHandlerUnset
 	}

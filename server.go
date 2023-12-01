@@ -314,8 +314,16 @@ func (s *server) OnTextMessage(c Conn, data []byte) (err error) {
 		return ErrorBodyIsEmpty
 	}
 
+	defer func() {
+		cmd := strconv.Itoa(int(msg.Body.Cmd))
+		if s.ClientCmdMap != nil && s.ClientCmdMap[int32(msg.Body.Cmd)] != "" {
+			cmd = s.ClientCmdMap[int32(msg.Body.Cmd)]
+		}
+		client.Log(EventReceiveMessage, cmd, err)
+	}()
+
+	client.HeartbeatTime = s.HeartbeatTimeout
 	if msg.Body.Cmd == uint32(pb.SocketCmd_SocketCmdHeartbeat) {
-		client.HeartbeatTime = s.HeartbeatTimeout
 		m := &JsonMessage{
 			Body: &JsonMessageBody{
 				Cmd: uint32(pb.SocketCmd_SocketCmdHeartbeat),
@@ -341,6 +349,7 @@ func (s *server) OnBinaryMessage(c Conn, data []byte) (err error) {
 	if err != nil {
 		return err
 	}
+
 	msg := &pb.Message{}
 	if err := proto.Unmarshal(data, msg); err != nil {
 		return err
@@ -349,8 +358,16 @@ func (s *server) OnBinaryMessage(c Conn, data []byte) (err error) {
 		return ErrorBodyIsEmpty
 	}
 
+	defer func() {
+		cmd := strconv.Itoa(int(msg.Body.Cmd))
+		if s.ClientCmdMap != nil && s.ClientCmdMap[int32(msg.Body.Cmd)] != "" {
+			cmd = s.ClientCmdMap[int32(msg.Body.Cmd)]
+		}
+		client.Log(EventReceiveMessage, cmd, err)
+	}()
+
+	client.HeartbeatTime = s.HeartbeatTimeout
 	if msg.Body.Cmd == uint32(pb.SocketCmd_SocketCmdHeartbeat) {
-		client.HeartbeatTime = s.HeartbeatTimeout
 		m := &pb.Message{
 			Body: &pb.MessageBody{
 				Cmd: uint32(pb.SocketCmd_SocketCmdHeartbeat),
