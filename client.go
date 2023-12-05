@@ -108,7 +108,9 @@ func (c *Client) AuthorizeFailed(err error) {
 func (c *Client) closeConnection(err error, updateStatus bool) {
 	defer c.Log(EventCloseConnect, err.Error(), nil)
 	//通知客户端断开
-	c.Conn.OnError(err, true)
+	if c.ClientId != "" {
+		c.Conn.OnError(err, true)
+	}
 	c.disconnect(true)
 	go func() {
 		//延迟1秒后服务端主动断开
