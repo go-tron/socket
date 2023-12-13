@@ -99,7 +99,7 @@ func (s WebSocketConn) OnError(err error, disconnect bool) {
 	}
 	content, _ := anypb.New(&pb.Error{
 		Code:    e.Code,
-		Message: e.Msg,
+		Message: e.Error(),
 	})
 	cmd := pb.SocketCmd_SocketCmdError
 	if disconnect {
