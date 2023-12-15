@@ -170,9 +170,6 @@ func NewWebSocket(config *Config, opts ...Option) Server {
 	if config.MessageStorage == nil {
 		panic("MessageStorage 必须设置")
 	}
-	if config.Dispatch != nil && config.ClientStorage == nil {
-		panic("Cluster模式 ClientStorage 必须设置")
-	}
 	if config.SendAttempt == nil {
 		panic("SendAttempt 必须设置")
 	}
@@ -198,12 +195,10 @@ func NewWebSocket(config *Config, opts ...Option) Server {
 		messageConfig:    messageConf,
 		clientConfig: &clientConfig{
 			sendAttempt:          config.SendAttempt,
-			storage:              config.ClientStorage,
 			logger:               config.ClientLogger,
 			binaryMessageHandler: config.BinaryMessageHandler,
 			textMessageHandler:   config.TextMessageHandler,
 		},
-		clientStorage: config.ClientStorage,
 	}
 
 	httpServer := &http.Server{

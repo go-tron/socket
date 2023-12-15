@@ -79,6 +79,11 @@ func NewDispatchGrpc(config *DispatchGrpcConfig, opts ...DispatchGrpcOption) *Di
 		messageChan:   make(chan *pb.Message),
 	}
 	go NewDispatchServerGrpc(":"+config.Port, s)
+
+	if s.clientStorage != nil {
+		s.clientStorage.resetNode(s.NodeName)
+	}
+
 	if config.Register {
 		go s.discovery.nodeRegister(s.NodeName, config.IP+":"+config.Port)
 	}

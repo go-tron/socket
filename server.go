@@ -37,7 +37,6 @@ type Config struct {
 	ClientCmdMap         map[int32]string
 	ServerCmdMap         map[int32]string
 	ClientLogger         logger.Logger        //客户端日志
-	ClientStorage        clientStorage        //客户端状态存储接口
 	SendAttempt          *SendAttempt         //消息发送重试设置
 	TextMessageHandler   TextMessageHandler   //客户端消息处理函数
 	BinaryMessageHandler BinaryMessageHandler //客户端消息处理函数
@@ -67,11 +66,6 @@ func WithDispatch(val dispatch) Option {
 func WithMessageStorage(val messageStorage) Option {
 	return func(opts *Config) {
 		opts.MessageStorage = val
-	}
-}
-func WithClientStorage(val clientStorage) Option {
-	return func(opts *Config) {
-		opts.ClientStorage = val
 	}
 }
 func WithSendAttemptDelayFunc(val SendAttemptDelayFunc) Option {
@@ -118,9 +112,6 @@ func newServer(config *serverConfig) *server {
 			}
 		}()
 	}
-	if s.clientStorage != nil {
-		s.clientStorage.resetNode(s.NodeName)
-	}
 	return s
 }
 
@@ -132,7 +123,6 @@ type serverConfig struct {
 	dispatch         dispatch
 	messageConfig    *messageConfig
 	clientConfig     *clientConfig
-	clientStorage
 }
 
 type server struct {

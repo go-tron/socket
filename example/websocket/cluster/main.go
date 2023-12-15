@@ -68,10 +68,6 @@ func main() {
 			AppName:       appName,
 			RedisInstance: redisClient,
 		})),
-		socket.WithClientStorage(socket.NewClientStorageRedis(&socket.ClientStorageRedisConfig{
-			AppName:       appName,
-			RedisInstance: redisClient,
-		})),
 		socket.WithMessageIdGenerator(snowflakeId.New(0)),
 		socket.WithTextMessageHandler(func(client *socket.Client, msg *socket.JsonMessage, data []byte) (err error) {
 			fmt.Println("WithTextMessageHandler", client.ClientId, msg)
@@ -161,6 +157,7 @@ func main() {
 			NodeName: nodeName,
 			IP:       nodeIP,
 			Port:     dispatchPort,
+			Register: true,
 			Discovery: socket.NewDiscoveryEtcd(&socket.DiscoveryEtcdConfig{
 				AppName:      appName,
 				TTL:          15,
