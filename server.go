@@ -45,7 +45,6 @@ type Config struct {
 	MessageStorage       messageStorage       //消息存储接口
 	MessageIdGenerator   messageIdGenerator   //消息ID生成接口
 	Dispatch             dispatch             //节点注册发现接口 *不配置时为单机模式
-	ProducerServer       producerServer       //消息生产服务
 }
 
 type Option func(*Config)
@@ -58,11 +57,6 @@ func WithClientCmdMap(val map[int32]string) Option {
 func WithServerCmdMap(val map[int32]string) Option {
 	return func(opts *Config) {
 		opts.ServerCmdMap = val
-	}
-}
-func WithProducerServer(val producerServer) Option {
-	return func(opts *Config) {
-		opts.ProducerServer = val
 	}
 }
 func WithDispatch(val dispatch) Option {
@@ -124,13 +118,6 @@ func newServer(config *serverConfig) *server {
 			}
 		}()
 	}
-	if s.producerServer != nil {
-		go func() {
-			for msg := range s.producerServer.subscribeMessage() {
-				s.Send(msg)
-			}
-		}()
-	}
 	if s.clientStorage != nil {
 		s.clientStorage.resetNode(s.NodeName)
 	}
@@ -143,7 +130,6 @@ type serverConfig struct {
 	ClientCmdMap     map[int32]string
 	ServerCmdMap     map[int32]string
 	dispatch         dispatch
-	producerServer   producerServer
 	messageConfig    *messageConfig
 	clientConfig     *clientConfig
 	clientStorage
@@ -241,21 +227,7 @@ func (s *server) send(msg *WrappedMessage) (err error) {
 	if s.dispatch == nil {
 		return ErrorClientOffline
 	}
-	//获取客户端连接状态
-	nodeName, err := s.clientStorage.getStatus(msg.ClientId)
-	if err != nil {
-		return ErrorGetClientStatus(err.Error())
-	}
-	if nodeName == "" {
-		//客户端离线直接返回 消息已存时待上线再发
-		return ErrorClientOffline
-	} else if nodeName == s.NodeName {
-		//客户端状态异常
-		return ErrorClientStatusException
-	} else {
-		//客户端连接至集群其他服务器节点时,发布至对应服务器节点处理发送
-		return s.dispatch.publishMessage(nodeName, msg.Message)
-	}
+	return s.dispatch.publishMessage(msg.Message)
 }
 
 func (s *server) SendWrapped(msg *WrappedMessage) (err error) {

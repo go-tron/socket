@@ -17,20 +17,28 @@ type dispatch interface {
 	subscribeClient() chan map[string]string
 	subscribeMessage() chan *pb.Message
 	publishClient(clientId string)
-	publishMessage(nodeName string, msg *pb.Message) error
+	publishMessage(msg *pb.Message) error
 }
 
 type DispatchGrpcConfig struct {
-	NodeName  string
-	IP        string
-	Port      string
-	Discovery discovery
+	NodeName      string
+	IP            string
+	Port          string
+	Register      bool
+	Discovery     discovery
+	ClientStorage clientStorage
 }
 type DispatchGrpcOption func(*DispatchGrpcConfig)
 
 func DispatchGrpcWithDiscovery(val discovery) DispatchGrpcOption {
 	return func(conf *DispatchGrpcConfig) {
 		conf.Discovery = val
+	}
+}
+
+func DispatchGrpcWithRegister(val bool) DispatchGrpcOption {
+	return func(conf *DispatchGrpcConfig) {
+		conf.Register = val
 	}
 }
 
@@ -63,14 +71,17 @@ func NewDispatchGrpc(config *DispatchGrpcConfig, opts ...DispatchGrpcOption) *Di
 	}
 
 	s := &DispatchServerGrpc{
-		NodeName:    config.NodeName,
-		discovery:   config.Discovery,
-		NodeList:    &sync.Map{},
-		connectChan: make(chan map[string]string),
-		messageChan: make(chan *pb.Message),
+		NodeName:      config.NodeName,
+		discovery:     config.Discovery,
+		clientStorage: config.ClientStorage,
+		NodeList:      &sync.Map{},
+		connectChan:   make(chan map[string]string),
+		messageChan:   make(chan *pb.Message),
 	}
 	go NewDispatchServerGrpc(":"+config.Port, s)
-	go s.discovery.nodeRegister(s.NodeName, config.IP+":"+config.Port)
+	if config.Register {
+		go s.discovery.nodeRegister(s.NodeName, config.IP+":"+config.Port)
+	}
 	go func() {
 		for v := range s.discovery.nodeAddSubscribe() {
 			for nodeName, addr := range v {
@@ -114,11 +125,12 @@ func NewDispatchGrpc(config *DispatchGrpcConfig, opts ...DispatchGrpcOption) *Di
 }
 
 type DispatchServerGrpc struct {
-	NodeName    string
-	NodeList    *sync.Map
-	discovery   discovery
-	connectChan chan map[string]string
-	messageChan chan *pb.Message
+	NodeName      string
+	NodeList      *sync.Map
+	discovery     discovery
+	clientStorage clientStorage
+	connectChan   chan map[string]string
+	messageChan   chan *pb.Message
 	pb.UnimplementedDispatchServer
 }
 
@@ -142,7 +154,20 @@ func (s *DispatchServerGrpc) publishClient(clientId string) {
 	})
 }
 
-func (s *DispatchServerGrpc) publishMessage(nodeName string, msg *pb.Message) (err error) {
+func (s *DispatchServerGrpc) publishMessage(msg *pb.Message) (err error) {
+	//获取客户端连接状态
+	nodeName, err := s.clientStorage.getStatus(msg.ClientId)
+	if err != nil {
+		return ErrorGetClientStatus(err.Error())
+	}
+	if nodeName == "" {
+		//客户端离线直接返回 消息已存时待上线再发
+		return ErrorClientOffline
+	} else if nodeName == s.NodeName {
+		//客户端状态异常
+		return ErrorClientStatusException
+	}
+
 	var client *DispatchClientGrpc
 	value, ok := s.NodeList.Load(nodeName)
 	if !ok {

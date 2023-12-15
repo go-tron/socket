@@ -195,7 +195,6 @@ func NewWebSocket(config *Config, opts ...Option) Server {
 		ClientCmdMap:     config.ClientCmdMap,
 		ServerCmdMap:     config.ServerCmdMap,
 		dispatch:         config.Dispatch,
-		producerServer:   config.ProducerServer,
 		messageConfig:    messageConf,
 		clientConfig: &clientConfig{
 			sendAttempt:          config.SendAttempt,

@@ -23,13 +23,11 @@ import (
 
 var socketPortFlag = pflag.StringP("socketPort", "s", "9000", "specify the socketPort")
 var dispatchPortFlag = pflag.StringP("dispatchPort", "d", "10000", "specify the dispatchPort")
-var producerPortFlag = pflag.StringP("producerPort", "p", "10010", "specify the producerPort")
 
 func main() {
 
 	pflag.Parse()
 	socketPort := *socketPortFlag
-	producerPort := *producerPortFlag
 	dispatchPort := *dispatchPortFlag
 
 	var appName = "test-app"
@@ -168,9 +166,10 @@ func main() {
 				TTL:          15,
 				EtcdInstance: etcdClient,
 			}),
-		})),
-		socket.WithProducerServer(socket.NewProducerServerGrpc(&socket.ProducerServerGrpcConfig{
-			Port: producerPort,
+			ClientStorage: socket.NewClientStorageRedis(&socket.ClientStorageRedisConfig{
+				AppName:       appName,
+				RedisInstance: redisClient,
+			}),
 		})),
 	)
 
