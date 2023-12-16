@@ -8,7 +8,7 @@ require (
 	github.com/go-tron/etcd v1.0.1
 	github.com/go-tron/local-time v1.0.0
 	github.com/go-tron/logger v1.0.1
-	github.com/go-tron/nsq v1.0.4
+	github.com/go-tron/nsq v1.0.5
 	github.com/go-tron/redis v1.0.1
 	github.com/go-tron/snowflake-id v1.0.0
 	github.com/go-tron/types v1.0.1

@@ -20,7 +20,6 @@ type SendAttempt struct {
 
 type clientConfig struct {
 	sendAttempt          *SendAttempt
-	storage              clientStorage
 	logger               logger.Logger
 	textMessageHandler   TextMessageHandler
 	binaryMessageHandler BinaryMessageHandler

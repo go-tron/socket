@@ -21,12 +21,9 @@ func main() {
 			Password:    "Pf*rm1D^V&hBDAKC",
 			DialTimeout: 5 * time.Second,
 		}),
-		ClientStorage: socket.NewClientStorageRedis(&socket.ClientStorageRedisConfig{
-			AppName: appName,
-			RedisInstance: redis.New(&redis.Config{
-				Addr:     "127.0.0.1:6379",
-				Password: "GBkrIO9bkOcWrdsC",
-			}),
+		RedisInstance: redis.New(&redis.Config{
+			Addr:     "127.0.0.1:6379",
+			Password: "GBkrIO9bkOcWrdsC",
 		}),
 	})
 

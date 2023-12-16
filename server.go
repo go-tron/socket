@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/go-tron/logger"
+	"github.com/go-tron/redis"
 	"github.com/go-tron/socket/pb"
 	"google.golang.org/protobuf/proto"
 	"slices"
@@ -37,14 +38,14 @@ type Config struct {
 	ClientCmdMap         map[int32]string
 	ServerCmdMap         map[int32]string
 	ClientLogger         logger.Logger        //客户端日志
-	ClientStorage        clientStorage        //客户端状态存储接口
 	SendAttempt          *SendAttempt         //消息发送重试设置
 	TextMessageHandler   TextMessageHandler   //客户端消息处理函数
 	BinaryMessageHandler BinaryMessageHandler //客户端消息处理函数
 	MessageLogger        logger.Logger        //消息日志
-	MessageStorage       messageStorage       //消息存储接口
 	MessageIdGenerator   messageIdGenerator   //消息ID生成接口
 	Dispatch             dispatch             //节点注册发现接口 *不配置时为单机模式
+	RedisConfig          *redis.Config
+	RedisInstance        *redis.Redis
 }
 
 type Option func(*Config)
@@ -64,14 +65,14 @@ func WithDispatch(val dispatch) Option {
 		opts.Dispatch = val
 	}
 }
-func WithMessageStorage(val messageStorage) Option {
+func WithRedisConfig(val *redis.Config) Option {
 	return func(opts *Config) {
-		opts.MessageStorage = val
+		opts.RedisConfig = val
 	}
 }
-func WithClientStorage(val clientStorage) Option {
+func WithRedisInstance(val *redis.Redis) Option {
 	return func(opts *Config) {
-		opts.ClientStorage = val
+		opts.RedisInstance = val
 	}
 }
 func WithSendAttemptDelayFunc(val SendAttemptDelayFunc) Option {
@@ -179,8 +180,8 @@ func (s *server) addClient(client *Client) {
 	}()
 
 	s.ClientList.Add(client)
-	if client.storage != nil {
-		client.storage.setStatusOnline(client.context, client.ClientId, s.NodeName)
+	if s.clientStorage != nil {
+		s.clientStorage.setStatusOnline(client.context, client.ClientId, s.NodeName)
 	}
 	if s.dispatch != nil {
 		s.dispatch.publishClient(client.ClientId)
@@ -193,8 +194,8 @@ func (s *server) removeClient(client *Client) {
 	}
 	client.Removed = true
 	s.ClientList.RemoveByConnectId(client.Conn.ID())
-	if !client.ActiveClose && client.storage != nil {
-		client.storage.setStatusOffline(client.ClientId, s.NodeName)
+	if !client.ActiveClose && s.clientStorage != nil {
+		s.clientStorage.setStatusOffline(client.ClientId, s.NodeName)
 	}
 }
 

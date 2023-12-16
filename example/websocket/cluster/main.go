@@ -49,10 +49,6 @@ func main() {
 		Password:    "Pf*rm1D^V&hBDAKC",
 		DialTimeout: 5 * time.Second,
 	})
-	var clientStorage = socket.NewClientStorageRedis(&socket.ClientStorageRedisConfig{
-		AppName:       appName,
-		RedisInstance: redisClient,
-	})
 
 	var server socket.Server
 	server = socket.NewWebSocket(
@@ -67,12 +63,8 @@ func main() {
 				SendAttemptDelay: time.Second,
 				SendMaxAttempts:  5,
 			},
-		},
-		socket.WithMessageStorage(socket.NewMessageStorageRedis(&socket.MessageStorageRedisConfig{
-			AppName:       appName,
 			RedisInstance: redisClient,
-		})),
-		socket.WithClientStorage(clientStorage),
+		},
 		socket.WithMessageIdGenerator(snowflakeId.New(0)),
 		socket.WithTextMessageHandler(func(client *socket.Client, msg *socket.JsonMessage, data []byte) (err error) {
 			fmt.Println("WithTextMessageHandler", client.ClientId, msg)
@@ -165,7 +157,7 @@ func main() {
 			Port:          dispatchPort,
 			TTL:           15,
 			EtcdInstance:  etcdClient,
-			ClientStorage: clientStorage,
+			RedisInstance: redisClient,
 		})),
 	)
 

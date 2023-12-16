@@ -5,6 +5,7 @@ import (
 	"github.com/go-tron/config"
 	"github.com/go-tron/etcd"
 	"github.com/go-tron/logger"
+	"github.com/go-tron/redis"
 	"github.com/go-tron/socket/pb"
 	"sync"
 	"time"
@@ -15,7 +16,8 @@ type ProducerGrpcConfig struct {
 	DefaultAddr   string
 	EtcdConfig    *etcd.Config
 	EtcdInstance  *etcd.Client
-	ClientStorage clientStorage
+	RedisConfig   *redis.Config
+	RedisInstance *redis.Redis
 }
 type ProducerGrpcOption func(*ProducerGrpcConfig)
 
@@ -29,6 +31,16 @@ func ProducerGrpcWithEtcdInstance(val *etcd.Client) ProducerGrpcOption {
 		conf.EtcdInstance = val
 	}
 }
+func ProducerGrpcWithRedisConfig(val *redis.Config) ProducerGrpcOption {
+	return func(opts *ProducerGrpcConfig) {
+		opts.RedisConfig = val
+	}
+}
+func ProducerGrpcWithRedisInstance(val *redis.Redis) ProducerGrpcOption {
+	return func(opts *ProducerGrpcConfig) {
+		opts.RedisInstance = val
+	}
+}
 func NewProducerGrpcWithConfig(c *config.Config, opts ...ProducerGrpcOption) *ProducerServerGrpc {
 	conf := &ProducerGrpcConfig{
 		AppName: c.GetString("application.name"),
@@ -38,6 +50,13 @@ func NewProducerGrpcWithConfig(c *config.Config, opts ...ProducerGrpcOption) *Pr
 			Password:    c.GetString("etcd.password"),
 			DialTimeout: c.GetDuration("etcd.dialTimeout"),
 			Logger:      logger.NewZapWithConfig(c, "etcd", "error"),
+		},
+		RedisConfig: &redis.Config{
+			Addr:         c.GetString("redis.addr"),
+			Password:     c.GetString("redis.password"),
+			Database:     c.GetInt("redis.database"),
+			PoolSize:     c.GetInt("redis.poolSize"),
+			MinIdleConns: c.GetInt("redis.minIdleConns"),
 		},
 	}
 	return NewProducerGrpc(conf, opts...)
@@ -61,15 +80,21 @@ func NewProducerGrpc(config *ProducerGrpcConfig, opts ...ProducerGrpcOption) *Pr
 		}
 		config.EtcdInstance = etcd.New(config.EtcdConfig)
 	}
-	if config.ClientStorage == nil {
-		panic("ClientStorage 必须设置")
+
+	if config.RedisInstance == nil {
+		if config.RedisConfig == nil {
+			panic("请设置redis实例或者连接配置")
+		}
+		config.RedisInstance = redis.New(config.RedisConfig)
 	}
 
 	s := &ProducerServerGrpc{
-		clientStorage: config.ClientStorage,
-		NodeList:      &sync.Map{},
+		NodeList: &sync.Map{},
+		clientStorage: NewClientStorageRedis(&ClientStorageRedisConfig{
+			AppName:       config.AppName,
+			RedisInstance: config.RedisInstance,
+		}),
 	}
-
 	defaultClient, err := NewDispatchGrpcClient(config.DefaultAddr)
 	if err != nil {
 		panic(err)

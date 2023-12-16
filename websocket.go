@@ -6,6 +6,7 @@ import (
 	baseError "github.com/go-tron/base-error"
 	"github.com/go-tron/config"
 	"github.com/go-tron/logger"
+	"github.com/go-tron/redis"
 	"github.com/go-tron/snowflake-id"
 	"github.com/go-tron/socket/pb"
 	"github.com/gorilla/websocket"
@@ -167,11 +168,11 @@ func NewWebSocket(config *Config, opts ...Option) Server {
 	if config.NodeName == "" {
 		panic("NodeName 必须设置")
 	}
-	if config.MessageStorage == nil {
-		panic("MessageStorage 必须设置")
-	}
-	if config.Dispatch != nil && config.ClientStorage == nil {
-		panic("Cluster模式 ClientStorage 必须设置")
+	if config.RedisInstance == nil {
+		if config.RedisConfig == nil {
+			panic("请设置redis实例或者连接配置")
+		}
+		config.RedisInstance = redis.New(config.RedisConfig)
 	}
 	if config.SendAttempt == nil {
 		panic("SendAttempt 必须设置")
@@ -184,8 +185,11 @@ func NewWebSocket(config *Config, opts ...Option) Server {
 	}
 
 	messageConf := &messageConfig{
-		logger:      config.MessageLogger,
-		storage:     config.MessageStorage,
+		logger: config.MessageLogger,
+		storage: NewMessageStorageRedis(&MessageStorageRedisConfig{
+			AppName:       config.AppName,
+			RedisInstance: config.RedisInstance,
+		}),
 		idGenerator: config.MessageIdGenerator,
 	}
 
@@ -198,12 +202,14 @@ func NewWebSocket(config *Config, opts ...Option) Server {
 		messageConfig:    messageConf,
 		clientConfig: &clientConfig{
 			sendAttempt:          config.SendAttempt,
-			storage:              config.ClientStorage,
 			logger:               config.ClientLogger,
 			textMessageHandler:   config.TextMessageHandler,
 			binaryMessageHandler: config.BinaryMessageHandler,
 		},
-		clientStorage: config.ClientStorage,
+		clientStorage: NewClientStorageRedis(&ClientStorageRedisConfig{
+			AppName:       config.AppName,
+			RedisInstance: config.RedisInstance,
+		}),
 	}
 
 	httpServer := &http.Server{

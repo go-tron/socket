@@ -5,6 +5,7 @@ import (
 	"github.com/go-tron/config"
 	"github.com/go-tron/etcd"
 	"github.com/go-tron/logger"
+	"github.com/go-tron/redis"
 	"github.com/go-tron/socket/pb"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -30,7 +31,8 @@ type DispatchGrpcConfig struct {
 	TTL           int64
 	EtcdConfig    *etcd.Config
 	EtcdInstance  *etcd.Client
-	ClientStorage clientStorage
+	RedisConfig   *redis.Config
+	RedisInstance *redis.Redis
 }
 type DispatchGrpcOption func(*DispatchGrpcConfig)
 
@@ -44,9 +46,14 @@ func DispatchGrpcWithEtcdInstance(val *etcd.Client) DispatchGrpcOption {
 		conf.EtcdInstance = val
 	}
 }
-func DispatchGrpcWithClientStorage(val clientStorage) DispatchGrpcOption {
+func DispatchGrpcWithRedisConfig(val *redis.Config) DispatchGrpcOption {
 	return func(opts *DispatchGrpcConfig) {
-		opts.ClientStorage = val
+		opts.RedisConfig = val
+	}
+}
+func DispatchGrpcWithRedisInstance(val *redis.Redis) DispatchGrpcOption {
+	return func(opts *DispatchGrpcConfig) {
+		opts.RedisInstance = val
 	}
 }
 func NewDispatchGrpcWithConfig(c *config.Config, opts ...DispatchGrpcOption) *DispatchGrpcServer {
@@ -62,6 +69,13 @@ func NewDispatchGrpcWithConfig(c *config.Config, opts ...DispatchGrpcOption) *Di
 			Password:    c.GetString("etcd.password"),
 			DialTimeout: c.GetDuration("etcd.dialTimeout"),
 			Logger:      logger.NewZapWithConfig(c, "etcd", "error"),
+		},
+		RedisConfig: &redis.Config{
+			Addr:         c.GetString("redis.addr"),
+			Password:     c.GetString("redis.password"),
+			Database:     c.GetInt("redis.database"),
+			PoolSize:     c.GetInt("redis.poolSize"),
+			MinIdleConns: c.GetInt("redis.minIdleConns"),
 		},
 	}
 	return NewDispatchGrpc(conf, opts...)
@@ -96,11 +110,14 @@ func NewDispatchGrpc(config *DispatchGrpcConfig, opts ...DispatchGrpcOption) *Di
 	}
 
 	s := &DispatchGrpcServer{
-		NodeName:      config.NodeName,
-		clientStorage: config.ClientStorage,
-		NodeList:      &sync.Map{},
-		connectChan:   make(chan map[string]string),
-		messageChan:   make(chan *pb.Message),
+		NodeName: config.NodeName,
+		NodeList: &sync.Map{},
+		clientStorage: NewClientStorageRedis(&ClientStorageRedisConfig{
+			AppName:       config.AppName,
+			RedisInstance: config.RedisInstance,
+		}),
+		connectChan: make(chan map[string]string),
+		messageChan: make(chan *pb.Message),
 	}
 	go NewDispatchGrpcServer(":"+config.Port, s)
 
