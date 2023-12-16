@@ -44,6 +44,11 @@ func DispatchGrpcWithEtcdInstance(val *etcd.Client) DispatchGrpcOption {
 		conf.EtcdInstance = val
 	}
 }
+func DispatchGrpcWithClientStorage(val clientStorage) DispatchGrpcOption {
+	return func(opts *DispatchGrpcConfig) {
+		opts.ClientStorage = val
+	}
+}
 func NewDispatchGrpcWithConfig(c *config.Config, opts ...DispatchGrpcOption) *DispatchGrpcServer {
 	conf := &DispatchGrpcConfig{
 		AppName:  c.GetString("application.name"),
