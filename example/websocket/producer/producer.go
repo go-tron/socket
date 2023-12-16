@@ -13,7 +13,8 @@ import (
 func main() {
 	var appName = "test-app"
 	producer := socket.NewProducerGrpc(&socket.ProducerGrpcConfig{
-		AppName: appName,
+		AppName:     appName,
+		DefaultAddr: "127.0.0.1:10001",
 		EtcdInstance: etcd.New(&etcd.Config{
 			Endpoints:   []string{"http://127.0.0.1:10179", "http://127.0.0.1:10279", "http://127.0.0.1:10379"},
 			Username:    "root",

@@ -12,6 +12,7 @@ import (
 
 type ProducerGrpcConfig struct {
 	AppName       string
+	DefaultAddr   string
 	EtcdConfig    *etcd.Config
 	EtcdInstance  *etcd.Client
 	ClientStorage clientStorage
@@ -51,17 +52,29 @@ func NewProducerGrpc(config *ProducerGrpcConfig, opts ...ProducerGrpcOption) *Pr
 	if config.AppName == "" {
 		panic("AppName 必须设置")
 	}
+	if config.DefaultAddr == "" {
+		panic("DefaultAddr 必须设置")
+	}
 	if config.EtcdInstance == nil {
 		if config.EtcdConfig == nil {
 			panic("请设置etcd实例或者连接配置")
 		}
 		config.EtcdInstance = etcd.New(config.EtcdConfig)
 	}
+	if config.ClientStorage == nil {
+		panic("ClientStorage 必须设置")
+	}
 
 	s := &ProducerServerGrpc{
 		clientStorage: config.ClientStorage,
 		NodeList:      &sync.Map{},
 	}
+
+	defaultClient, err := NewDispatchGrpcClient(config.DefaultAddr)
+	if err != nil {
+		panic(err)
+	}
+	s.DefaultNode = defaultClient
 
 	discovery := etcd.MustNewDiscovery(&etcd.DiscoveryConfig{
 		AppName:      config.AppName,
@@ -71,22 +84,22 @@ func NewProducerGrpc(config *ProducerGrpcConfig, opts ...ProducerGrpcOption) *Pr
 	go func() {
 		for v := range discovery.AddSubscribe() {
 			for nodeName, addr := range v {
-				node, ok := s.NodeList.LoadAndDelete(nodeName)
+				val, ok := s.NodeList.LoadAndDelete(nodeName)
 				if ok {
-					node.(*DispatchGrpcClient).Conn.Close()
+					val.(*DispatchGrpcClient).Conn.Close()
 				}
-				client, err := NewDispatchGrpcClient(addr)
+				node, err := NewDispatchGrpcClient(addr)
 				if err == nil {
-					s.NodeList.Store(nodeName, client)
+					s.NodeList.Store(nodeName, node)
 				}
 			}
 		}
 	}()
 	go func() {
 		for nodeName := range discovery.RemoveSubscribe() {
-			node, ok := s.NodeList.LoadAndDelete(nodeName)
+			val, ok := s.NodeList.LoadAndDelete(nodeName)
 			if ok {
-				node.(*DispatchGrpcClient).Conn.Close()
+				val.(*DispatchGrpcClient).Conn.Close()
 			}
 		}
 	}()
@@ -105,28 +118,25 @@ func NewProducerGrpc(config *ProducerGrpcConfig, opts ...ProducerGrpcOption) *Pr
 }
 
 type ProducerServerGrpc struct {
+	DefaultNode   *DispatchGrpcClient
 	NodeList      *sync.Map
 	clientStorage clientStorage
 }
 
-func (s *ProducerServerGrpc) Publish(msg *pb.Message) (err error) {
-	//获取客户端连接状态
-	nodeName, err := s.clientStorage.getStatus(msg.ClientId)
-	if err != nil {
-		return ErrorGetClientStatus(err.Error())
+func (s *ProducerServerGrpc) findNode(clientId string) *DispatchGrpcClient {
+	nodeName, _ := s.clientStorage.getStatus(clientId)
+	if nodeName != "" {
+		value, ok := s.NodeList.Load(nodeName)
+		if ok {
+			return value.(*DispatchGrpcClient)
+		}
 	}
-	if nodeName == "" {
-		//客户端离线直接返回 消息已存时待上线再发
-		return ErrorClientOffline
-	}
+	return s.DefaultNode
+}
 
-	value, ok := s.NodeList.Load(nodeName)
-	if !ok {
-		return ErrorGetNodeClient(nodeName)
-	}
-	client := value.(*DispatchGrpcClient)
+func (s *ProducerServerGrpc) Publish(msg *pb.Message) (err error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 	defer cancel()
-	_, err = client.Client.MessageSrv(ctx, msg)
+	_, err = s.findNode(msg.ClientId).Client.MessageSrv(ctx, msg)
 	return err
 }

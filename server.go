@@ -222,7 +222,6 @@ func (s *server) send(msg *WrappedMessage) (err error) {
 	if client != nil {
 		return client.sendMessageWithRetry(msg)
 	}
-
 	//单机模式下直接判断离线
 	if s.dispatch == nil {
 		return ErrorClientOffline

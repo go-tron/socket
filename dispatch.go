@@ -117,13 +117,13 @@ func NewDispatchGrpc(config *DispatchGrpcConfig, opts ...DispatchGrpcOption) *Di
 				if nodeName == config.NodeName {
 					continue
 				}
-				node, ok := s.NodeList.LoadAndDelete(nodeName)
+				val, ok := s.NodeList.LoadAndDelete(nodeName)
 				if ok {
-					node.(*DispatchGrpcClient).Conn.Close()
+					val.(*DispatchGrpcClient).Conn.Close()
 				}
-				client, err := NewDispatchGrpcClient(addr)
+				node, err := NewDispatchGrpcClient(addr)
 				if err == nil {
-					s.NodeList.Store(nodeName, client)
+					s.NodeList.Store(nodeName, node)
 				}
 			}
 		}
@@ -133,9 +133,9 @@ func NewDispatchGrpc(config *DispatchGrpcConfig, opts ...DispatchGrpcOption) *Di
 			if nodeName == config.NodeName {
 				continue
 			}
-			node, ok := s.NodeList.LoadAndDelete(nodeName)
+			val, ok := s.NodeList.LoadAndDelete(nodeName)
 			if ok {
-				node.(*DispatchGrpcClient).Conn.Close()
+				val.(*DispatchGrpcClient).Conn.Close()
 			}
 		}
 	}()
