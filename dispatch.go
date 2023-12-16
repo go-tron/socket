@@ -3,6 +3,8 @@ package socket
 import (
 	"context"
 	"github.com/go-tron/config"
+	"github.com/go-tron/etcd"
+	"github.com/go-tron/logger"
 	"github.com/go-tron/socket/pb"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -21,41 +23,53 @@ type dispatch interface {
 }
 
 type DispatchGrpcConfig struct {
+	AppName       string
 	NodeName      string
 	IP            string
 	Port          string
-	Register      bool
-	Discovery     discovery
+	TTL           int64
+	EtcdConfig    *etcd.Config
+	EtcdInstance  *etcd.Client
 	ClientStorage clientStorage
 }
 type DispatchGrpcOption func(*DispatchGrpcConfig)
 
-func DispatchGrpcWithDiscovery(val discovery) DispatchGrpcOption {
+func DispatchGrpcWithEtcdConfig(val *etcd.Config) DispatchGrpcOption {
 	return func(conf *DispatchGrpcConfig) {
-		conf.Discovery = val
+		conf.EtcdConfig = val
 	}
 }
-
-func DispatchGrpcWithRegister(val bool) DispatchGrpcOption {
+func DispatchGrpcWithEtcdInstance(val *etcd.Client) DispatchGrpcOption {
 	return func(conf *DispatchGrpcConfig) {
-		conf.Register = val
+		conf.EtcdInstance = val
 	}
 }
-
-func NewDispatchGrpcWithConfig(c *config.Config, opts ...DispatchGrpcOption) *DispatchServerGrpc {
+func NewDispatchGrpcWithConfig(c *config.Config, opts ...DispatchGrpcOption) *DispatchGrpcServer {
 	conf := &DispatchGrpcConfig{
+		AppName:  c.GetString("application.name"),
 		NodeName: c.GetString("cluster.podName"),
 		IP:       c.GetString("cluster.podIP"),
 		Port:     c.GetString("socket.dispatch.port"),
+		TTL:      c.GetInt64("etcd.register.ttl"),
+		EtcdConfig: &etcd.Config{
+			Endpoints:   c.GetStringSlice("etcd.endpoints"),
+			Username:    c.GetString("etcd.username"),
+			Password:    c.GetString("etcd.password"),
+			DialTimeout: c.GetDuration("etcd.dialTimeout"),
+			Logger:      logger.NewZapWithConfig(c, "etcd", "error"),
+		},
 	}
 	return NewDispatchGrpc(conf, opts...)
 }
 
-func NewDispatchGrpc(config *DispatchGrpcConfig, opts ...DispatchGrpcOption) *DispatchServerGrpc {
+func NewDispatchGrpc(config *DispatchGrpcConfig, opts ...DispatchGrpcOption) *DispatchGrpcServer {
 	for _, apply := range opts {
 		if apply != nil {
 			apply(config)
 		}
+	}
+	if config.AppName == "" {
+		panic("AppName 必须设置")
 	}
 	if config.NodeName == "" {
 		panic("NodeName 必须设置")
@@ -66,38 +80,48 @@ func NewDispatchGrpc(config *DispatchGrpcConfig, opts ...DispatchGrpcOption) *Di
 	if config.Port == "" {
 		panic("Port 必须设置")
 	}
-	if config.Discovery == nil {
-		panic("Discovery 必须设置")
+	if config.EtcdInstance == nil {
+		if config.EtcdConfig == nil {
+			panic("请设置etcd实例或者连接配置")
+		}
+		config.EtcdInstance = etcd.New(config.EtcdConfig)
+	}
+	if config.TTL == 0 {
+		config.TTL = 15
 	}
 
-	s := &DispatchServerGrpc{
+	s := &DispatchGrpcServer{
 		NodeName:      config.NodeName,
-		discovery:     config.Discovery,
 		clientStorage: config.ClientStorage,
 		NodeList:      &sync.Map{},
 		connectChan:   make(chan map[string]string),
 		messageChan:   make(chan *pb.Message),
 	}
-	go NewDispatchServerGrpc(":"+config.Port, s)
+	go NewDispatchGrpcServer(":"+config.Port, s)
 
-	if s.clientStorage != nil {
-		s.clientStorage.resetNode(s.NodeName)
-	}
+	etcd.MustNewRegister(&etcd.RegisterConfig{
+		AppName:      config.AppName,
+		Node:         config.NodeName,
+		Addr:         config.IP + ":" + config.Port,
+		TTL:          config.TTL,
+		EtcdInstance: config.EtcdInstance,
+	})
 
-	if config.Register {
-		go s.discovery.nodeRegister(s.NodeName, config.IP+":"+config.Port)
-	}
+	discovery := etcd.MustNewDiscovery(&etcd.DiscoveryConfig{
+		AppName:      config.AppName,
+		EtcdInstance: config.EtcdInstance,
+	})
 	go func() {
-		for v := range s.discovery.nodeAddSubscribe() {
+		for v := range discovery.AddSubscribe() {
 			for nodeName, addr := range v {
 				if nodeName == config.NodeName {
 					continue
 				}
 				node, ok := s.NodeList.LoadAndDelete(nodeName)
 				if ok {
-					node.(*DispatchClientGrpc).Conn.Close()
+					node.(*DispatchGrpcClient).Conn.Close()
 				}
-				client, err := NewDispatchClientGrpc(addr)
+				client, err := NewDispatchGrpcClient(addr)
 				if err == nil {
 					s.NodeList.Store(nodeName, client)
 				}
@@ -105,13 +129,13 @@ func NewDispatchGrpc(config *DispatchGrpcConfig, opts ...DispatchGrpcOption) *Di
 		}
 	}()
 	go func() {
-		for nodeName := range s.discovery.nodeRemoveSubscribe() {
+		for nodeName := range discovery.RemoveSubscribe() {
 			if nodeName == config.NodeName {
 				continue
 			}
 			node, ok := s.NodeList.LoadAndDelete(nodeName)
 			if ok {
-				node.(*DispatchClientGrpc).Conn.Close()
+				node.(*DispatchGrpcClient).Conn.Close()
 			}
 		}
 	}()
@@ -129,26 +153,25 @@ func NewDispatchGrpc(config *DispatchGrpcConfig, opts ...DispatchGrpcOption) *Di
 	return s
 }
 
-type DispatchServerGrpc struct {
+type DispatchGrpcServer struct {
 	NodeName      string
 	NodeList      *sync.Map
-	discovery     discovery
 	clientStorage clientStorage
 	connectChan   chan map[string]string
 	messageChan   chan *pb.Message
 	pb.UnimplementedDispatchServer
 }
 
-func (s *DispatchServerGrpc) subscribeClient() chan map[string]string {
+func (s *DispatchGrpcServer) subscribeClient() chan map[string]string {
 	return s.connectChan
 }
-func (s *DispatchServerGrpc) subscribeMessage() chan *pb.Message {
+func (s *DispatchGrpcServer) subscribeMessage() chan *pb.Message {
 	return s.messageChan
 }
 
-func (s *DispatchServerGrpc) publishClient(clientId string) {
+func (s *DispatchGrpcServer) publishClient(clientId string) {
 	s.NodeList.Range(func(key, value interface{}) bool {
-		client := value.(*DispatchClientGrpc)
+		client := value.(*DispatchGrpcClient)
 		ctx, cancel := context.WithTimeout(context.Background(), 6*time.Second)
 		defer cancel()
 		client.Client.ClientSrv(ctx, &pb.Client{
@@ -159,7 +182,7 @@ func (s *DispatchServerGrpc) publishClient(clientId string) {
 	})
 }
 
-func (s *DispatchServerGrpc) publishMessage(msg *pb.Message) (err error) {
+func (s *DispatchGrpcServer) publishMessage(msg *pb.Message) (err error) {
 	//获取客户端连接状态
 	nodeName, err := s.clientStorage.getStatus(msg.ClientId)
 	if err != nil {
@@ -173,33 +196,32 @@ func (s *DispatchServerGrpc) publishMessage(msg *pb.Message) (err error) {
 		return ErrorClientStatusException
 	}
 
-	var client *DispatchClientGrpc
 	value, ok := s.NodeList.Load(nodeName)
 	if !ok {
 		return ErrorGetNodeClient(nodeName)
 	}
-	client = value.(*DispatchClientGrpc)
+	client := value.(*DispatchGrpcClient)
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 	defer cancel()
 	_, err = client.Client.MessageSrv(ctx, msg)
 	return err
 }
 
-func (s *DispatchServerGrpc) ClientSrv(ctx context.Context, in *pb.Client) (*pb.Result, error) {
+func (s *DispatchGrpcServer) ClientSrv(ctx context.Context, in *pb.Client) (*pb.Result, error) {
 	go func() {
 		s.connectChan <- map[string]string{in.NodeName: in.ClientId}
 	}()
 	return &pb.Result{Message: "ok"}, nil
 }
 
-func (s *DispatchServerGrpc) MessageSrv(ctx context.Context, in *pb.Message) (*pb.Result, error) {
+func (s *DispatchGrpcServer) MessageSrv(ctx context.Context, in *pb.Message) (*pb.Result, error) {
 	go func() {
 		s.messageChan <- in
 	}()
 	return &pb.Result{Message: "ok"}, nil
 }
 
-func NewDispatchServerGrpc(addr string, server *DispatchServerGrpc) {
+func NewDispatchGrpcServer(addr string, server *DispatchGrpcServer) {
 	lis, err := net.Listen("tcp", addr)
 	if err != nil {
 		panic(err)
@@ -215,12 +237,12 @@ func NewDispatchServerGrpc(addr string, server *DispatchServerGrpc) {
 	}
 }
 
-type DispatchClientGrpc struct {
+type DispatchGrpcClient struct {
 	Conn   *grpc.ClientConn
 	Client pb.DispatchClient
 }
 
-func NewDispatchClientGrpc(addr string) (client *DispatchClientGrpc, err error) {
+func NewDispatchGrpcClient(addr string) (client *DispatchGrpcClient, err error) {
 	conn, err := grpc.Dial(addr,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithKeepaliveParams(keepalive.ClientParameters{
@@ -239,7 +261,7 @@ func NewDispatchClientGrpc(addr string) (client *DispatchClientGrpc, err error) 
 		return nil, err
 	}
 
-	return &DispatchClientGrpc{
+	return &DispatchGrpcClient{
 		Conn:   conn,
 		Client: pb.NewDispatchClient(conn),
 	}, nil

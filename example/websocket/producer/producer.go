@@ -1,7 +1,9 @@
 package main
 
 import (
+	"github.com/go-tron/etcd"
 	localTime "github.com/go-tron/local-time"
+	"github.com/go-tron/redis"
 	"github.com/go-tron/socket"
 	"github.com/go-tron/socket/pb"
 	"google.golang.org/protobuf/types/known/anypb"
@@ -9,7 +11,23 @@ import (
 )
 
 func main() {
-	producer := socket.NewProducerGrpc("127.0.0.1:10011")
+	var appName = "test-app"
+	producer := socket.NewProducerGrpc(&socket.ProducerGrpcConfig{
+		AppName: appName,
+		EtcdInstance: etcd.New(&etcd.Config{
+			Endpoints:   []string{"http://127.0.0.1:10179", "http://127.0.0.1:10279", "http://127.0.0.1:10379"},
+			Username:    "root",
+			Password:    "Pf*rm1D^V&hBDAKC",
+			DialTimeout: 5 * time.Second,
+		}),
+		ClientStorage: socket.NewClientStorageRedis(&socket.ClientStorageRedisConfig{
+			AppName: appName,
+			RedisInstance: redis.New(&redis.Config{
+				Addr:     "127.0.0.1:6379",
+				Password: "GBkrIO9bkOcWrdsC",
+			}),
+		}),
+	})
 
 	content, err := anypb.New(&pb.Text{
 		Message: "我哦我我我我",

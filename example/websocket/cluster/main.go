@@ -49,6 +49,10 @@ func main() {
 		Password:    "Pf*rm1D^V&hBDAKC",
 		DialTimeout: 5 * time.Second,
 	})
+	var clientStorage = socket.NewClientStorageRedis(&socket.ClientStorageRedisConfig{
+		AppName:       appName,
+		RedisInstance: redisClient,
+	})
 
 	var server socket.Server
 	server = socket.NewWebSocket(
@@ -68,6 +72,7 @@ func main() {
 			AppName:       appName,
 			RedisInstance: redisClient,
 		})),
+		socket.WithClientStorage(clientStorage),
 		socket.WithMessageIdGenerator(snowflakeId.New(0)),
 		socket.WithTextMessageHandler(func(client *socket.Client, msg *socket.JsonMessage, data []byte) (err error) {
 			fmt.Println("WithTextMessageHandler", client.ClientId, msg)
@@ -154,19 +159,13 @@ func main() {
 			return NsqProducer.SendSync("client-message", data)
 		}),
 		socket.WithDispatch(socket.NewDispatchGrpc(&socket.DispatchGrpcConfig{
-			NodeName: nodeName,
-			IP:       nodeIP,
-			Port:     dispatchPort,
-			Register: true,
-			Discovery: socket.NewDiscoveryEtcd(&socket.DiscoveryEtcdConfig{
-				AppName:      appName,
-				TTL:          15,
-				EtcdInstance: etcdClient,
-			}),
-			ClientStorage: socket.NewClientStorageRedis(&socket.ClientStorageRedisConfig{
-				AppName:       appName,
-				RedisInstance: redisClient,
-			}),
+			AppName:       appName,
+			NodeName:      nodeName,
+			IP:            nodeIP,
+			Port:          dispatchPort,
+			TTL:           15,
+			EtcdInstance:  etcdClient,
+			ClientStorage: clientStorage,
 		})),
 	)
 
