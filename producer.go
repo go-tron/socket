@@ -41,7 +41,7 @@ func ProducerGrpcWithRedisInstance(val *redis.Redis) ProducerGrpcOption {
 		opts.RedisInstance = val
 	}
 }
-func NewProducerGrpcWithConfig(c *config.Config, opts ...ProducerGrpcOption) *ProducerServerGrpc {
+func NewProducerGrpcWithConfig(c *config.Config, opts ...ProducerGrpcOption) *ProducerGrpc {
 	conf := &ProducerGrpcConfig{
 		AppName: c.GetString("application.name"),
 		EtcdConfig: &etcd.Config{
@@ -62,7 +62,7 @@ func NewProducerGrpcWithConfig(c *config.Config, opts ...ProducerGrpcOption) *Pr
 	return NewProducerGrpc(conf, opts...)
 }
 
-func NewProducerGrpc(config *ProducerGrpcConfig, opts ...ProducerGrpcOption) *ProducerServerGrpc {
+func NewProducerGrpc(config *ProducerGrpcConfig, opts ...ProducerGrpcOption) *ProducerGrpc {
 	for _, apply := range opts {
 		if apply != nil {
 			apply(config)
@@ -88,7 +88,7 @@ func NewProducerGrpc(config *ProducerGrpcConfig, opts ...ProducerGrpcOption) *Pr
 		config.RedisInstance = redis.New(config.RedisConfig)
 	}
 
-	s := &ProducerServerGrpc{
+	s := &ProducerGrpc{
 		NodeList: &sync.Map{},
 		clientStorage: NewClientStorageRedis(&ClientStorageRedisConfig{
 			AppName:       config.AppName,
@@ -142,13 +142,13 @@ func NewProducerGrpc(config *ProducerGrpcConfig, opts ...ProducerGrpcOption) *Pr
 	return s
 }
 
-type ProducerServerGrpc struct {
+type ProducerGrpc struct {
 	DefaultNode   *DispatchGrpcClient
 	NodeList      *sync.Map
 	clientStorage clientStorage
 }
 
-func (s *ProducerServerGrpc) findNode(clientId string) *DispatchGrpcClient {
+func (s *ProducerGrpc) findNode(clientId string) *DispatchGrpcClient {
 	nodeName, _ := s.clientStorage.getStatus(clientId)
 	if nodeName != "" {
 		value, ok := s.NodeList.Load(nodeName)
@@ -159,7 +159,7 @@ func (s *ProducerServerGrpc) findNode(clientId string) *DispatchGrpcClient {
 	return s.DefaultNode
 }
 
-func (s *ProducerServerGrpc) Publish(msg *pb.Message) (err error) {
+func (s *ProducerGrpc) Publish(msg *pb.Message) (err error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 	defer cancel()
 	_, err = s.findNode(msg.ClientId).Client.MessageSrv(ctx, msg)
