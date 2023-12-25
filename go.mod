@@ -5,7 +5,7 @@ go 1.21
 require (
 	github.com/go-tron/base-error v1.0.1
 	github.com/go-tron/config v1.0.1
-	github.com/go-tron/etcd v1.0.2
+	github.com/go-tron/etcd v1.0.5
 	github.com/go-tron/local-time v1.0.0
 	github.com/go-tron/logger v1.0.1
 	github.com/go-tron/nsq v1.0.5
