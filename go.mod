@@ -5,7 +5,7 @@ go 1.21
 require (
 	github.com/go-tron/base-error v1.0.1
 	github.com/go-tron/config v1.0.1
-	github.com/go-tron/etcd v1.0.5
+	github.com/go-tron/etcd v1.0.7
 	github.com/go-tron/local-time v1.0.0
 	github.com/go-tron/logger v1.0.1
 	github.com/go-tron/nsq v1.0.5
@@ -51,7 +51,7 @@ require (
 	go.etcd.io/etcd/client/v3 v3.5.11 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.26.0 // indirect
-	golang.org/x/exp v0.0.0-20231219180239-dc181d75b848 // indirect
+	golang.org/x/exp v0.0.0-20231226003508-02704c960a9b // indirect
 	golang.org/x/net v0.19.0 // indirect
 	golang.org/x/sys v0.15.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
