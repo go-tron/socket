@@ -3,12 +3,12 @@ module github.com/go-tron/socket
 go 1.21
 
 require (
-	github.com/go-tron/base-error v1.0.1
+	github.com/go-tron/base-error v1.0.2
 	github.com/go-tron/config v1.0.1
 	github.com/go-tron/etcd v1.0.7
 	github.com/go-tron/local-time v1.0.0
 	github.com/go-tron/logger v1.0.1
-	github.com/go-tron/nsq v1.0.5
+	github.com/go-tron/nsq v1.0.6
 	github.com/go-tron/redis v1.0.1
 	github.com/go-tron/snowflake-id v1.0.0
 	github.com/go-tron/types v1.0.1
@@ -21,12 +21,12 @@ require (
 )
 
 require (
+	github.com/avast/retry-go/v4 v4.5.1 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/coreos/go-semver v0.3.1 // indirect
 	github.com/coreos/go-systemd/v22 v22.5.0 // indirect
 	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
 	github.com/fsnotify/fsnotify v1.7.0 // indirect
-	github.com/go-tron/random v1.0.0 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/protobuf v1.5.3 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
