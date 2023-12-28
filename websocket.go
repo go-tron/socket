@@ -36,10 +36,10 @@ func NewWebSocketConn(sc *websocket.Conn) *WebSocketConn {
 func (s *WebSocketConn) SetClient(client *Client) {
 	s.client = client
 }
-func (s WebSocketConn) Close() error {
+func (s *WebSocketConn) Close() error {
 	return s.Conn.Close()
 }
-func (s WebSocketConn) ID() string {
+func (s *WebSocketConn) ID() string {
 	return s.id
 }
 
@@ -62,12 +62,12 @@ func (s *WebSocketConn) GetClient() (*Client, error) {
 	return nil, ErrorClientNotFound
 }
 
-func (s WebSocketConn) GetIP() string {
+func (s *WebSocketConn) GetIP() string {
 	ip := s.Conn.RemoteAddr().String()
 	return ip
 }
 
-func (s WebSocketConn) Send(msg []byte) (err error) {
+func (s *WebSocketConn) Send(msg []byte) (err error) {
 	defer func() {
 		if e := recover(); e != nil {
 			var clientId = ""
@@ -91,7 +91,7 @@ func (s WebSocketConn) Send(msg []byte) (err error) {
 	return err
 }
 
-func (s WebSocketConn) OnError(err error, disconnect bool) {
+func (s *WebSocketConn) OnError(err error, disconnect bool) {
 	var e *baseError.Error
 	if reflect.TypeOf(err).String() == "*baseError.Error" {
 		e = err.(*baseError.Error)
