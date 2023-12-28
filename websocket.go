@@ -68,6 +68,8 @@ func (s *WebSocketConn) GetIP() string {
 }
 
 func (s *WebSocketConn) Send(msg []byte) (err error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	defer func() {
 		if e := recover(); e != nil {
 			var clientId = ""
@@ -78,8 +80,6 @@ func (s *WebSocketConn) Send(msg []byte) (err error) {
 			log.Printf("Send Recover: connId=%s clientId=%s err=%v msg=%s\r\n", s.id, clientId, err, string(msg))
 		}
 	}()
-	s.mu.Lock()
-	defer s.mu.Unlock()
 	err = s.WriteMessage(websocket.BinaryMessage, msg)
 	if err != nil {
 		var clientId = ""
