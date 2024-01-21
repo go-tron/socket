@@ -12,4 +12,5 @@ service Dispatch {
 message Client {
   string NodeName = 1;
   string ClientId = 2;
+  string UniqueSig = 3;
 }

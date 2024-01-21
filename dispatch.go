@@ -17,9 +17,9 @@ import (
 )
 
 type dispatch interface {
-	subscribeClient() chan map[string]string
+	subscribeClient() chan *pb.Client
 	subscribeMessage() chan *pb.Message
-	publishClient(clientId string)
+	publishClient(client *pb.Client)
 	publishMessage(msg *pb.Message) error
 }
 
@@ -116,7 +116,7 @@ func NewDispatchGrpc(config *DispatchGrpcConfig, opts ...DispatchGrpcOption) *Di
 			AppName:       config.AppName,
 			RedisInstance: config.RedisInstance,
 		}),
-		connectChan: make(chan map[string]string),
+		connectChan: make(chan *pb.Client),
 		messageChan: make(chan *pb.Message),
 	}
 	go NewDispatchGrpcServer(":"+config.Port, s)
@@ -179,27 +179,25 @@ type DispatchGrpcServer struct {
 	NodeName      string
 	NodeList      *sync.Map
 	clientStorage clientStorage
-	connectChan   chan map[string]string
+	connectChan   chan *pb.Client
 	messageChan   chan *pb.Message
 	pb.UnimplementedDispatchServer
 }
 
-func (s *DispatchGrpcServer) subscribeClient() chan map[string]string {
+func (s *DispatchGrpcServer) subscribeClient() chan *pb.Client {
 	return s.connectChan
 }
 func (s *DispatchGrpcServer) subscribeMessage() chan *pb.Message {
 	return s.messageChan
 }
 
-func (s *DispatchGrpcServer) publishClient(clientId string) {
+func (s *DispatchGrpcServer) publishClient(data *pb.Client) {
 	s.NodeList.Range(func(key, value interface{}) bool {
 		client := value.(*DispatchGrpcClient)
 		ctx, cancel := context.WithTimeout(context.Background(), 6*time.Second)
 		defer cancel()
-		client.Client.ClientSrv(ctx, &pb.Client{
-			NodeName: s.NodeName,
-			ClientId: clientId,
-		})
+		data.NodeName = s.NodeName
+		client.Client.ClientSrv(ctx, data)
 		return true
 	})
 }
@@ -231,7 +229,7 @@ func (s *DispatchGrpcServer) publishMessage(msg *pb.Message) (err error) {
 
 func (s *DispatchGrpcServer) ClientSrv(ctx context.Context, in *pb.Client) (*pb.Result, error) {
 	go func() {
-		s.connectChan <- map[string]string{in.NodeName: in.ClientId}
+		s.connectChan <- in
 	}()
 	return &pb.Result{Message: "ok"}, nil
 }

@@ -108,14 +108,12 @@ func newServer(config *serverConfig) *server {
 	if s.dispatch != nil {
 		go func() {
 			for v := range s.dispatch.subscribeClient() {
-				for nodeName, clientId := range v {
-					s.removeOldClientSubscribe(nodeName, clientId)
-				}
+				s.removeOldClientSubscribe(v)
 			}
 		}()
 		go func() {
-			for msg := range s.dispatch.subscribeMessage() {
-				s.Send(msg)
+			for v := range s.dispatch.subscribeMessage() {
+				s.Send(v)
 			}
 		}()
 	}
@@ -158,16 +156,21 @@ func (s *server) removeOldClient(c *Client) {
 	}
 }
 
-func (s *server) removeOldClientSubscribe(nodeName string, clientId string) {
-	if nodeName == s.NodeName {
+func (s *server) removeOldClientSubscribe(c *pb.Client) {
+	if c.NodeName == s.NodeName {
 		return
 	}
-	oc := s.ClientList.GetByClientId(clientId)
+	oc := s.ClientList.GetByClientId(c.ClientId)
 	if oc == nil {
 		return
 	}
 	s.ClientList.RemoveByConnectId(oc.Conn.ID())
-	oc.closeConnection(ErrorDuplicateConnect, false)
+
+	if oc.UniqueSig == c.UniqueSig {
+		oc.closeConnection(ErrorDuplicateConnectWithSameUniqueSig, false)
+	} else {
+		oc.closeConnection(ErrorDuplicateConnect, false)
+	}
 }
 
 func (s *server) addClient(client *Client) {
@@ -184,7 +187,10 @@ func (s *server) addClient(client *Client) {
 		s.clientStorage.setStatusOnline(client.context, client.ClientId, s.NodeName)
 	}
 	if s.dispatch != nil {
-		s.dispatch.publishClient(client.ClientId)
+		s.dispatch.publishClient(&pb.Client{
+			ClientId:  client.ClientId,
+			UniqueSig: client.UniqueSig,
+		})
 	}
 }
 
